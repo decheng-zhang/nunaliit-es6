@@ -9,7 +9,8 @@ import {default as N2MapStyles} from './N2MapStyles.js';
 import {createDefaultStyle} from 'ol/style/Style.js'
 
 import {default as ImageSource} from 'ol/source/Image.js';
-import {default as N2IntentSource} from './N2SourceWithN2Intent.js';
+import {default as N2Select} from './N2Select.js';
+import {default as N2SourceWithN2Intent} from './N2SourceWithN2Intent.js';
 
 
 
@@ -24,7 +25,7 @@ import Tile from 'ol/layer/Tile.js';
 
 import {click as clickCondition} from 'ol/events/condition.js';
 import {default as SelectInteraction} from 'ol/interaction/Select.js';
-import {default as N2Select} from './N2Select.js';
+
 import {default as DrawInteraction} from 'ol/interaction/Draw.js';
 import Stamen from 'ol/source/Stamen.js';
 import LayerSwitcher from 'ol-layerswitcher';
@@ -145,9 +146,9 @@ class N2MapCanvas  {
 	/**
 	* Preprocess the opts.overlay. Producing overlay-sources array
 	* and overlay-infos array.
-	* @param  {[type]} overlays [description]
-	* @param  {[type]} sources [description]
-	* @param  {[type]} overlayInfos [description]
+	* @param  {Array} overlays [description]
+	* @param  {Array} sources [description]
+	* @param  {Array} overlayInfos [description]
 	*/
 	_prepOverlay (overlays, sources, overlayInfos) {
 		if( $n2.isArray(overlays) ){
@@ -220,33 +221,6 @@ class N2MapCanvas  {
 	_drawMap() {
 			var _this = this;
 
-			/**
-			* declare and init two layers array -- map and overlay
-			*/
-
-
-			/**
-			* filling in the vector layers
-			*/
-
-			this.overlayLayers = this._genOverlayMapLayers(this.sources);
-			this.mapLayers = this._genBackgroundMapLayers(this.bgSources);
-
-			/**
-			* Two Groups : Overlay and Background
-			*/
-			var overlayGroup = new LayerGroup({
-				title: 'Overlays',
-				layers: this.overlayLayers
-			});
-			var bgGroup = new LayerGroup({
-				title: 'Background',
-				layers: this.mapLayers
-			});
-
-			/**
-			* ol.View tweaking listen on the resolution changing.
-			*/
 			var olView = new View({
 				center: transform([-75, 45.5], 'EPSG:4326', 'EPSG:3857'),
 				projection: 'EPSG:3857',
@@ -266,20 +240,33 @@ class N2MapCanvas  {
 			});
 			var customMap = new Map({
 				target : this.canvasId,
-				layers: [
-					bgGroup,
-					overlayGroup
-				],
 				view: olView
 			});
+//------------------------------
+//------------------------------ create and add layers
+			this.overlayLayers = this._genOverlayMapLayers(this.sources, customMap);
+			this.mapLayers = this._genBackgroundMapLayers(this.bgSources);
 
+			/**
+			* Two Groups : Overlay and Background
+			*/
+			var overlayGroup = new LayerGroup({
+				title: 'Overlays',
+				layers: this.overlayLayers
+			});
+			var bgGroup = new LayerGroup({
+				title: 'Background',
+				layers: this.mapLayers
+			});
+
+
+			customMap.set("layergroup",
+				new LayerGroup({layers: [bgGroup, overlayGroup]}) )
 
 
 			var customLayerSwitcher = new LayerSwitcher({
 				tipLabel: 'Legend' // Optional label for button
 			});
-
-
 			customMap.addControl(customLayerSwitcher);
 
 
@@ -308,19 +295,19 @@ class N2MapCanvas  {
 			nested.addControl(selectCtrl);
 
 			// Add N2selection tool (a N2select interaction to trigger n2Intent label)
-			var n2selectInter = new N2Select();
-			var n2selectCtrl = new Toggle(
-					{	html: '<i class="fa fa-hand-pointer-o"></i>',
-						className: "n2select",
-						title: "N2Select",
-						interaction: n2selectInter,
-						active:true,
-						onToggle: function(active)
-						{
-						}
-					});
-
-			nested.addControl(n2selectCtrl);
+			// var n2selectInter = new N2Select({map: customMap});
+			// var n2selectCtrl = new Toggle(
+			// 		{	html: '<i class="fa fa-hand-pointer-o"></i>',
+			// 			className: "n2select",
+			// 			title: "N2Select",
+			// 			interaction: n2selectInter,
+			// 			active:true,
+			// 			onToggle: function(active)
+			// 			{
+			// 			}
+			// 		});
+			//
+			// nested.addControl(n2selectCtrl);
 
 			// Add editing tools
 			var pedit = new Toggle(
@@ -411,7 +398,8 @@ class N2MapCanvas  {
 		}
 	}
 
-	_genOverlayMapLayers(Sources) {
+	_genOverlayMapLayers(Sources, map) {
+			const targetMap = map;
 			var fg = [];
 			var _this = this;
 			if( Sources) {
@@ -421,14 +409,14 @@ class N2MapCanvas  {
 						distance : 20,
 						source: source
 					});
-					// var n2IntentSource = new N2IntentSource({
-					//
-					// 	source: clusterSource
-					// });
+					var n2IntentSource = new N2SourceWithN2Intent({
+						interaction: new N2Select({map: targetMap}),
+						source: clusterSource
+					});
 					var vectorLayer = new VectorLayer({
 						title: "CouchDb",
 						renderMode : 'image',
-						source: clusterSource,
+						source: n2IntentSource,
 						style: testingStyle,
 						renderOrder: function(feature1, feature2){
 							return $n2.olUtils.ol5FeatureSorting(feature1, feature2);

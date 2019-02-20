@@ -20,7 +20,7 @@ class N2SourceWithN2Intent extends VectorSource {
 	constructor(options) {
 
 		super(options);
-		
+
 		/**
 		 * [resolution description]
 		 * @type {number|undefined}
@@ -32,10 +32,10 @@ class N2SourceWithN2Intent extends VectorSource {
 		 */
 		this.source = options.source;
 		/**
-		 * [features array with N2 label in it]
+		 * [features_ array with N2 label in it]
 		 * @type {Array}
 		 */
-		this.features = [];
+		this.features_ = [];
 
 		//-------------------------
 		// HOVER and CLICK
@@ -59,22 +59,29 @@ class N2SourceWithN2Intent extends VectorSource {
 			,features: []
 		};
 
-		this.interaction = options.interaction ? options.interaction:
-												new N2Select();//new N2Intent({});
-
+		this.interaction_ = options.interaction ;//new N2Intent({});
+		if (!this.interaction_) {
+			throw new Error("A valid interaction must be provided for "
+			 +"this custom source");
+		}
 		//-------------------------
+		listen(this.source, EventType.CHANGE, this.refresh, this);
 
-		listen(this.interaction, EventType.HOVER,  this.onHover, this);
-		listen(this.interaction, EventType.CLICKED,  this.onClicked, this);
-		listen(this.interaction, EventType.FOCUS,  this.onFocus, this);
-		listen(this.interaction, EventType.FIND,  this.onFind, this);
+		this.interaction_.on( "hover",  this.onHover);
+		this.interaction_.on( "clicked",  this.onClicked);
+		this.interaction_.on( "focus",  this.onFocus);
+		this.interaction_.on( "find",  this.onFind);
 
 	}
 
 	onHover(evt){
+	    console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
+			"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));
 		return true;
 	}
 	onClicked(evt){
+		console.log("Rec: clicked feature: " + evt.selected.length +
+					"declicked: " + evt.deselected.length);
 		return true;
 	}
 	onFocus(evt){
@@ -93,13 +100,14 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.resolution = resolution;
 			this.projection = projection;
 			this.addN2Label();
-			this.addFeatures(this.features);
+			this.addFeatures(this.features_);
 		}
 	}
+
 	refresh() {
 		this.clear();
 		this.addN2Label();
-		this.addFeatures(this.features);
+		this.addFeatures(this.features_);
 		super.refresh();
 	}
 
@@ -110,7 +118,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		if (this.resolution === undefined) {
 	      return;
 	    }
-		this.features.length = 0;
+		this.features_.length = 0;
 		let features = this.source.getFeatures();
 		if( features ) {
 				for(let i=0,e=features.length;i<e;++i){
@@ -160,7 +168,7 @@ class N2SourceWithN2Intent extends VectorSource {
 							};
 						};
 					};
-					this.features.push(f);
+					this.features_.push(f);
 				};
 			};
 
