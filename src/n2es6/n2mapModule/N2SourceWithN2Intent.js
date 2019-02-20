@@ -20,8 +20,7 @@ class N2SourceWithN2Intent extends VectorSource {
 	constructor(options) {
 
 		super(options);
-
-
+		
 		/**
 		 * [resolution description]
 		 * @type {number|undefined}
@@ -60,28 +59,29 @@ class N2SourceWithN2Intent extends VectorSource {
 			,features: []
 		};
 
-		this.intent = new N2Intent({});
+		this.interaction = options.interaction ? options.interaction:
+												new N2Select();//new N2Intent({});
 
 		//-------------------------
 
-		listen(this.intent, EventType.HOVER,  this.onHover, this);
-		listen(this.intent, EventType.CLICKED,  this.onClicked, this);
-		listen(this.intent, EventType.FOCUS,  this.onFocus, this);
-		listen(this.intent, EventType.FIND,  this.onFind, this);
+		listen(this.interaction, EventType.HOVER,  this.onHover, this);
+		listen(this.interaction, EventType.CLICKED,  this.onClicked, this);
+		listen(this.interaction, EventType.FOCUS,  this.onFocus, this);
+		listen(this.interaction, EventType.FIND,  this.onFind, this);
 
 	}
 
 	onHover(evt){
-
+		return true;
 	}
 	onClicked(evt){
-
+		return true;
 	}
 	onFocus(evt){
-
+		return true;
 	}
 	onFind(evt){
-
+		return true;
 	}
 
 

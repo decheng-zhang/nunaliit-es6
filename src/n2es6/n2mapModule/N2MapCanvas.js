@@ -24,6 +24,7 @@ import Tile from 'ol/layer/Tile.js';
 
 import {click as clickCondition} from 'ol/events/condition.js';
 import {default as SelectInteraction} from 'ol/interaction/Select.js';
+import {default as N2Select} from './N2Select.js';
 import {default as DrawInteraction} from 'ol/interaction/Draw.js';
 import Stamen from 'ol/source/Stamen.js';
 import LayerSwitcher from 'ol-layerswitcher';
@@ -306,6 +307,21 @@ class N2MapCanvas  {
 			);
 			nested.addControl(selectCtrl);
 
+			// Add N2selection tool (a N2select interaction to trigger n2Intent label)
+			var n2selectInter = new N2Select();
+			var n2selectCtrl = new Toggle(
+					{	html: '<i class="fa fa-hand-pointer-o"></i>',
+						className: "n2select",
+						title: "N2Select",
+						interaction: n2selectInter,
+						active:true,
+						onToggle: function(active)
+						{
+						}
+					});
+
+			nested.addControl(n2selectCtrl);
+
 			// Add editing tools
 			var pedit = new Toggle(
 					{	html: '<i class="fa fa-map-marker" ></i>',
@@ -405,14 +421,14 @@ class N2MapCanvas  {
 						distance : 20,
 						source: source
 					});
-					var n2IntentSource = new N2IntentSource({
-
-						source: clusterSource
-					});
+					// var n2IntentSource = new N2IntentSource({
+					//
+					// 	source: clusterSource
+					// });
 					var vectorLayer = new VectorLayer({
 						title: "CouchDb",
 						renderMode : 'image',
-						source: n2IntentSource,
+						source: clusterSource,
 						style: testingStyle,
 						renderOrder: function(feature1, feature2){
 							return $n2.olUtils.ol5FeatureSorting(feature1, feature2);
