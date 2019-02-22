@@ -436,7 +436,7 @@ class N2MapCanvas  {
 				let symb = style.getSymbolizer(feature);
 				var n2mapStyles = new N2MapStyles();
 				let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symb);
-				let innerStyle2 = createDefaultStyle();
+				//let innerStyle2 = createDefaultStyle();
 				return innerStyle;
 			}
 //			function createStyleFunction(lyStyleMap) {

@@ -66,7 +66,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		}
 		//-------------------------
 		listen(this.source, EventType.CHANGE, this.refresh, this);
-
+		
 		this.interaction_.on( "hover",  this.onHover);
 		this.interaction_.on( "clicked",  this.onClicked);
 		this.interaction_.on( "focus",  this.onFocus);
@@ -75,15 +75,109 @@ class N2SourceWithN2Intent extends VectorSource {
 	}
 
 	onHover(evt){
-	    console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
+		let selected  = evt.selected;
+		
+		
+		//In case, there is single feature inside a N2Cluster features collection
+	    if (selected){
+	    	let innerFeatures = selected.get('featuresInCluster');
+	    	if( innerFeatures && innerFeatures.length == 1){
+	    		selected = innerFeatures[0];
+	    	}
+		}
+	    if (this.hoverInfo.feature === selected) {
+	    	//no really going to happen.
+	    	return;
+	    }
+	    
+	    this._endHover();
+	    this.hoverInfo.feature = feature;
+	    
+	    if( this.interaction_.onStartHover ) {
+	    	this.interaction_.onStartHover (feature);
+	    }
+		console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
 			"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));
 		return true;
 	}
+	//clear up for hover
+	_endHover() {
+		for(var i=0,e=this.hoverInfo.endFn.length; i<e; ++i) {
+			//try{
+			this.hoverInfo.endFn[i](); 
+			//} catch(e){};
+		};
+		this.hoverInfo.feature = null;
+		this.hoverInfo.endFn = [];
+	}
+	
 	onClicked(evt){
-		console.log("Rec: clicked feature: " + evt.selected.length +
-					"declicked: " + evt.deselected.length);
+		let selected , deselected;
+		if ( evt.selected ) {
+			if ( evt.selected.length === 1 ){
+				selected = evt.selected[0];
+			} else {
+				throw new Error ("Nunaliit only support single click");
+			}
+		}
+		
+		if ( evt.deselected ) {
+			if ( evt.deselected.length === 1 ){
+				deselected = evt.deselected[0];
+			} else {
+				throw new Error ("Nunaliit only support single click");
+			}
+		}
+		//In case, there is single feature inside a N2Cluster features collection
+		if( selected ){
+			let innerFeatures = selected.get('featuresInCluster');
+			if( innerFeatures && innerFeatures.length == 1){
+				selected = innerFeatures[0];
+			}
+		}
+		
+		if( deselected ){
+			let innerFeatures = deselected.get('featuresInCluster');
+			if( innerFeatures && innerFeatures.length == 1){
+				deselected = innerFeatures[0];
+			}
+		}
+		this._endClicked();
+		if (typeof deselected !== 'undefined') {
+			this._dispatch({type:'userUnselect',docId:deselected.fid});
+		}
+		if (typeof selected !== 'undefined') {
+			this.clickedInfo.features = [selected];
+
+			this.clickedInfo.fids = {};
+			this.clickedInfo.fids[selected.fid] = { clicked: true };
+			this.clickedInfo.selectedId = selected.fid;
+			
+			selected.isClicked = true;
+			//ol2's layer drawFeature here, but I don't think we need that in ol5
+			//I will see.
+			if( this.interaction_.onStartClick ) {
+				this.interaction_.onStartClick(selected);
+			};
+		}
+		
+		
 		return true;
 	}
+	//clear up for click
+	_endClicked() {
+		if( this.clickedInfo.features ) {
+			for(var i=0,e=this.clickedInfo.features.length;i<e;++i){
+				var feature = this.clickedInfo.features[i];
+				
+				if( feature.isClicked ) {
+					feature.isClicked = false;
+					feature.n2SelectIntent = null;
+				}
+			}
+		}
+	}
+			
 	onFocus(evt){
 		return true;
 	}
@@ -99,14 +193,14 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.clear();
 			this.resolution = resolution;
 			this.projection = projection;
-			this.addN2Label();
+			this.updateN2Label();
 			this.addFeatures(this.features_);
 		}
 	}
 
 	refresh() {
 		this.clear();
-		this.addN2Label();
+		this.updateN2Label();
 		this.addFeatures(this.features_);
 		super.refresh();
 	}
@@ -114,10 +208,10 @@ class N2SourceWithN2Intent extends VectorSource {
 	/**
 	 * [addN2Label description]
 	 */
-	addN2Label() {
+	updateN2Label() {
 		if (this.resolution === undefined) {
-	      return;
-	    }
+		  return;
+		}
 		this.features_.length = 0;
 		let features = this.source.getFeatures();
 		if( features ) {
@@ -172,6 +266,22 @@ class N2SourceWithN2Intent extends VectorSource {
 				};
 			};
 
+	}
+	
+	_getDispatchService(){
+		var d = null;
+		if( this.options.directory ) {
+			d = this.options.directory.dispatchService;
+		};
+		
+		return d;
+	}
+	
+	_dispatch(m){
+		var dispatcher = this._getDispatchService();
+		if( dispatcher ) {
+			dispatcher.send(DH,m);
+		};
 	}
 
 

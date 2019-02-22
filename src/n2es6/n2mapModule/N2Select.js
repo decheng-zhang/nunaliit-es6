@@ -135,8 +135,10 @@ class N2Select extends Interaction {
 					{
 						hitTolerance: this.hitTolerance_
 					});
-			    this
-			    if( this.hoveredFeature_ === selected ) {
+				
+	
+
+			    if ( this.hoveredFeature_ === selected ) {
 					/* no hovered changed */
 			    } else {
 				deselected = this.hoveredFeature_;
