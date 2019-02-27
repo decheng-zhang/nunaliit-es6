@@ -4,21 +4,66 @@
 import {Fill, RegularShape, Stroke, Style, Text} from 'ol/style.js';
 import CircleStyle from 'ol/style/Circle';
 
-const StyleNamesMap = {
-	"fill": "Style.fill.color"
-	,"fill-opacity": "Style.fill.color.[3]"
-	,"stroke": "Style.stroke.color"
-	,"stroke-opacity": "Style.stroke.color.[3]"
-	,"stroke-width": "Style.stroke.width"
-	,"stroke-linecap": "Style.stroke.lineCap"
-	,"stroke-dasharray": "Style.stroke.lineDash"
-	,"r": ""
-	,"pointer-events": ""
-	,"color": ""
-	,"font-family": "Style.text.font.[2]"
-	,"font-size": "Style.text.font.[1]"
-	,"font-weight": "Style.text.font.[0]"
-}
+const StyleNamesMapForAll = 
+	{
+		'point':{
+			"fillColor": "Style.image.fill.color"
+			,"fillOpacity": "Style.image.fill.color.[3]"
+			,"pointRadius": "Style.image.radius"
+			,"pointerEvents": ""
+			,"graphicName": "Style.image.points"
+			,"strokeColor": "Style.image.stroke.color"
+			,"strokeLinecap": "Style.image.stroke.lineCap"
+			,"strokeOpacity": "Style.image.stroke.color.[3]"
+			,"strokeWidth": "Style.image.stroke.width"
+			,"fontColor" : "Style.text.fill.color"
+			,"fontFamily": "Style.text.font.[2]"
+			,"fontSize": "Style.text.font.[1]"
+			,"fontWeight": "Style.text.font.[0]"
+			,"label" : "Style.text.text"
+			,"labelOutlineColor" : "Style.text.stroke.color"
+			,"labelOutlineWidth" : "Style.text.stroke.width"
+			
+		}
+		,'line':{
+			"fillColor": "Style.fill.color"
+			,"fillOpacity": "Style.fill.color.[3]"
+			,"strokeColor" : "Style.stroke.color"
+			,"strokeOpacity": "Style.stroke.color.[3]"
+			,"strokeWidth": "Style.stroke.width"
+			,"strokeLinecap": "Style.stroke.lineCap"
+			,"strokeDashstyle": "Style.stroke.lineDash"
+			,"r": ""
+			,"pointerEvents": ""
+			,"color": ""
+			,"fontColor" : "Style.text.fill.color"
+			,"fontFamily": "Style.text.font.[2]"
+			,"fontSize": "Style.text.font.[1]"
+			,"fontWeight": "Style.text.font.[0]"
+			,"label" : "Style.text.text"
+			,"labelOutlineColor" : "Style.text.stroke.color"
+			,"labelOutlineWidth" : "Style.text.stroke.width"
+		}
+		,'polygon':{
+			"fillColor": "Style.fill.color"
+			,"fillOpacity": "Style.fill.color.[3]"
+			,"strokeColor" : "Style.stroke.color"
+			,"strokeOpacity": "Style.stroke.color.[3]"
+			,"strokeWidth": "Style.stroke.width"
+			,"strokeLinecap": "Style.stroke.lineCap"
+			,"strokeDashstyle": "Style.stroke.lineDash"
+			,"r": ""
+			,"pointerEvents": ""
+			,"color": ""
+			,"fontColor" : "Style.text.fill.color"
+			,"fontFamily": "Style.text.font.[2]"
+			,"fontSize": "Style.text.font.[1]"
+			,"fontWeight": "Style.text.font.[0]"
+			,"label" : "Style.text.text"
+			,"labelOutlineColor" : "Style.text.stroke.color"
+			,"labelOutlineWidth" : "Style.text.stroke.width"
+		}
+	}
 class N2MapStyles {
 
 	/**
@@ -35,15 +80,9 @@ class N2MapStyles {
 	* @param  {import 'nunaliit2/n2.styleRule.js'.Symbolizer} symbolizer []
 	* @return {import 'ol/style/Style.js'.default} [produce a ol5 Style object]
 	*/
- 	loadStyleFromN2Symbolizer( symbolizer ){
+ 	loadStyleFromN2Symbolizer(symbols , geometryType){
 
-		let symbolizerId = symbolizer.id;
-		var styleObj = this.cache[symbolizerId];
-		if (!styleObj ) {
-			let symbols = symbolizer.symbols;
-			styleObj =  this.getOl5StyleObjFromSymbol(symbols);
-			this.cache[symbolizerId]= styleObj;
-		}
+ 		var styleObj =  this.getOl5StyleObjFromSymbol(symbols, geometryType);	
 		return styleObj;
 	}
 	/**
@@ -51,8 +90,11 @@ class N2MapStyles {
 	* @param  {[type]} symbols [An nunaliit2 style symbolizer.symbols]
 	* @return {[type]}         [import 'ol/style/Style.js'.default]
 	*/
-	getOl5StyleObjFromSymbol(symbols) {
-
+	getOl5StyleObjFromSymbol(symbols, geometryType) {
+		if ( !StyleNamesMapForAll[geometryType.toLowerCase()] ){
+			throw new Error("N2MapStyles: this geometry type is not supported yet");
+		}
+		let StyleNamesMap = StyleNamesMapForAll[geometryType.toLowerCase()];
 		var internalOl5StyleNames = {};
 		for( var tags in symbols) {
 			var internalOl5StyleName = StyleNamesMap[tags] ;
@@ -84,33 +126,30 @@ class N2MapStyles {
 			if (currNodeString === 'Style') {
 				let currnode = supernode.style
 				if (!currnode) {
-					currnode = new Style({
-						image: new CircleStyle({
-							fill: new Fill({color: 'rgba(255,255,255,0.4)'}),
-							stroke: new Stroke({color: '#3399CC', width: 1.25}),
-							radius: 5
-						})
-					})
+					currnode = new Style({})
 				}
 				currnode[tagarr[1]+'_'] =
 				recurProps (tagarr.slice(1),
-				currnode,
-				value)
+						currnode,
+						value)
 				return  currnode;
 
 			} else if (currNodeString === 'image') {
 				let currnode = supernode.getImage();
 				if (!currnode) {
-					currnode = new CircleStyle({
-						fill: new Fill({color: 'rgba(255,255,255,0.4)'}),
-						stroke: new Stroke({color: '#3399CC', width: 1.25}),
+					currnode = new RegularShape({
+						points: Infinity,
+						fill: new Fill({color: '#ffffff'}),
+						stroke: new Stroke({color: '#ee9999', width: 2}),
 						radius: 5
 					});
 				}
+				currnode['checksums_'] = undefined;
 				currnode[tagarr[1]+'_'] =
 				recurProps (tagarr.slice(1),
-				currnode,
-				value)
+						currnode,
+						value)
+				currnode.render_();
 				return  currnode;
 
 			} else if (currNodeString === 'text') {
@@ -118,24 +157,28 @@ class N2MapStyles {
 				if (!currnode) {
 					currnode = new Text();
 				}
-
-				currnode[tagarr[1]+'_'] =
-				recurProps (tagarr.slice(1),
-				currnode,
-				value);
-				return  currnode;
+				
+				if (tagarr.length > 1) {
+					currnode[tagarr[1]+'_'] =
+						recurProps (tagarr.slice(1),
+								currnode,
+								value);
+					return  currnode;
+				} else if (tagarr.length === 1) {
+					return value;
+				}
 
 
 			} else if (currNodeString === 'fill') {
 				let currnode = supernode.getFill();
 				if (!currnode) {
-					currnode = new Fill();
+					currnode = new Fill({color: '#ffffff'});
 				}
 				currnode['checksum_'] = undefined;
 				currnode[tagarr[1]+'_'] =
 				recurProps (tagarr.slice(1),
-				currnode,
-				value);
+						currnode,
+						value);
 
 
 				return  currnode;
@@ -144,13 +187,13 @@ class N2MapStyles {
 			} else if (currNodeString === 'stroke') {
 				let currnode = supernode.getStroke();
 				if (!currnode) {
-					currnode = new Stroke();
+					currnode = new Stroke({color: '#ee9999', width: 2});
 				}
 				currnode['checksum_'] = undefined;
 				currnode[tagarr[1]+ '_'] =
 				recurProps (tagarr.slice(1),
-				currnode,
-				value);
+						currnode,
+						value);
 				return  currnode;
 
 
@@ -159,7 +202,7 @@ class N2MapStyles {
 				let colorArr = _this.colorValues(color);
 				let newColorArr ;
 				if ( !colorArr ) {
-					colorArr = _this.colorValues('white');
+					colorArr = _this.colorValues('#ee9999');
 				}
 
 				if (tagarr.length === 1) {
@@ -185,18 +228,18 @@ class N2MapStyles {
 				if (!font) {
 					fontArr = ['normal', '10px', 'sans-serif'];
 				} else {
-					fontArr = font.split(' ');
+					fontArr = _this.toFontArray(font);
 				}
 
-				if (fontArr.length <= 0) {
-					throw new Error('N2MapStyles: Bad Font Property');
-				} else if (fontArr.length < 2 && fontArr.length > 0) {
-					fontArr.unshift('normal', '10px');
-				} else if (fontArr.length < 3 && fontArr.length > 1) {
-					fontArr.unshift('normal');
-				}
+//				if (fontArr.length <= 0) {
+//					throw new Error('N2MapStyles: Bad Font Property');
+//				} else if (fontArr.length < 2 && fontArr.length > 0) {
+//					fontArr.unshift('normal', '10px');
+//				} else if (fontArr.length < 3 && fontArr.length > 1) {
+//					fontArr.unshift('normal');
+//				}
 				if (tagarr.length === 1) {
-					return fontArr.join();
+					return fontArr.join(' ');
 				} else if (tagarr.length > 1){
 					return recurProps (tagarr.slice(1), fontArr, value);
 				} else {
@@ -206,45 +249,98 @@ class N2MapStyles {
 
 					let idx = parseInt( currNodeString.replace(/\[(\d)\]/g, '$1') );
 					if (typeof idx === 'number') {
-						supernode [idx] = value;
+						supernode [idx] = value;	
+						if (supernode.length === 3){
+							supernode = supernode.join(' ');
+						}
 						return supernode;
 					} else {
 						throw new Error ('N2MapStyles: value index format error');
 					}
 
 			} else if (currNodeString.indexOf('width') === 0 ){
-				return ( parseInt (value) );
+				return (parseInt(value));
+			} else if (currNodeString.indexOf('radius') === 0){
+				return (value);
+			} else if (currNodeString.indexOf('opacity') === 0){
+				return (parseFloat(value));
 			} else if (currNodeString.indexOf('lineCap') === 0 ){
 				return ('' + value);
 			} else if (currNodeString.indexOf('lineDash') === 0 ) {
 				switch(value) {
 					case 'dot':
-						return [2,10];
+						return [0,4];
 					case 'dash':
-						return [5,10];
+						return [7];
 					case 'dashdot':
-						return  [2, 5, 10];
+						return  [10, 5, 0, 5];
 					case 'longdash':
 					 	return [15];
 					case 'longdashdot':
-						return [4, 10, 20];
+						return [20, 10, 0 , 10];
 					default:
 						return [1];
-
+				}
+			} else if (currNodeString.indexOf('points') === 0){
+				switch(value) {
+				case 'square':
+					supernode.setRotation(Math.PI / 4);
+					return 4;
+				case 'triangle':
+					return 3;
+				case 'star':
+					supernode.radius2_ = parseInt (supernode.radius_ * 0.4);
+					return 5;
+				case 'cross':
+					supernode.radius2_ = 0;
+					supernode.setRotation(Math.PI / 4);
+					return 4;
+				case 'x':
+					supernode.radius2_ = 0;
+					return 4;
+				default:
+					return Infinity;
 				}
 			} else {
 				throw new Error('N2MapStyles: Bad Style Tags');
 			}
 		}
-
 	}
-
+	// return array of [fontWeight, fontSize, fontFamily] from any given font string (css-like).
+	toFontArray(font) {
+		
+		var initFontArr = ['normal', '10px', 'sans-serif'];
+		DFS(font, initFontArr, 0);
+		return initFontArr;
+		function DFS(font, fontArr, cnt){
+			if (font === "" || cnt > 2) return;
+			var rhb = font.indexOf(' ');
+			rhb = (rhb !== -1) ? rhb : font.length;
+				let curr =  font.substring(0,rhb);
+				let idx = isWhichPartOfFont (curr)
+				fontArr[idx] = curr;
+				DFS (font.substring(rhb+1), fontArr, cnt++);
+			
+		}
+		
+		function isWhichPartOfFont (part) {
+			let fontWeightArr  = ['normal', 'bold'];
+			if (part.indexOf('px') > 0 ) {
+				return 1;
+			} else if (fontWeightArr.indexOf(part.toLowerCase()) > -1) {
+				return 0;
+			}
+			else {
+				return 2;
+			}
+			
+		}
+		
+	}
+	
 	// return array of [r,g,b,a] from any valid color. if failed returns undefined
 	/*
 	Examples:
-	colorValues('transparent'); // [0,0,0,0]
-	colorValues('white'); // [255, 255, 255, 1]
-	colorValues('teal'); // [0, 128, 128, 1]
 	colorValues('rgba(11,22,33,.44)'); // [11, 22, 33, 0.44]
 	colorValues('rgb(11,22,33)'); // [11, 22, 33, 1]
 	colorValues('#abc'); // [170, 187, 204, 1]
@@ -284,20 +380,6 @@ class N2MapStyles {
 				parseInt(color.substr(3, 2), 16),
 				parseInt(color.substr(5, 2), 16),
 				color.length > 7 ? parseInt(color.substr(7, 2), 16)/255 : 1];
-			}
-			if (color.indexOf('rgb') === -1)
-			{
-				// convert named colors
-				var temp_elem = document.body.appendChild(document.createElement('fictum')); // intentionally use unknown tag to lower chances of css rule override with !important
-				var flag = 'rgb(1, 2, 3)'; // this flag tested on chrome 59, ff 53, ie9, ie10, ie11, edge 14
-				temp_elem.style.color = flag;
-				if (temp_elem.style.color !== flag)
-				return; // color set failed - some monstrous css rule is probably taking over the color of our object
-				temp_elem.style.color = color;
-				if (temp_elem.style.color === flag || temp_elem.style.color === '')
-				return; // color parse failed
-				color = getComputedStyle(temp_elem).color;
-				document.body.removeChild(temp_elem);
 			}
 			if (color.indexOf('rgb') === 0)
 			{

@@ -28,6 +28,7 @@ import {default as SelectInteraction} from 'ol/interaction/Select.js';
 
 import {default as DrawInteraction} from 'ol/interaction/Draw.js';
 import Stamen from 'ol/source/Stamen.js';
+import OSM from 'ol/source/OSM';
 import LayerSwitcher from 'ol-layerswitcher';
 
 import 'ol-ext/dist/ol-ext.css';
@@ -55,6 +56,25 @@ const VENDOR =  {
 	STAMEN : 'stamen',
 	IMAGE : 'image',
 	COUCHDB : 'couchdb'
+};
+
+const olStyleNames = {
+		"fill": "fillColor"
+		,"fill-opacity": "fillOpacity"
+		,"stroke": "strokeColor"
+		,"stroke-opacity": "strokeOpacity"
+		,"stroke-width": "strokeWidth"
+		,"stroke-linecap": "strokeLinecap"
+		,"stroke-dasharray": "strokeDashstyle"
+		,"r": "pointRadius"
+		,"pointer-events": "pointEvents"
+		,"color": "fontColor"
+		,"font-family": "fontFamily"
+		,"font-size": "fontSize"
+		,"font-weight": "fontWeight"
+	};
+const stringStyles = {
+		"label": true
 };
 
 
@@ -115,6 +135,11 @@ class N2MapCanvas  {
 
 			this.mapLayers = [];
 			this.overlayLayers = [];
+			this.interactionSet = {
+					selectInteraction : null,
+					drawInteraction : null
+			};
+			this.currentInteract = null;
 			this._prepOverlay(opts.overlays ,this.sources, this.overlayInfos);
 
 			// Register to events
@@ -130,7 +155,7 @@ class N2MapCanvas  {
 			this.bgSources = opts.backgrounds || [];
 
 
-			this.Styles_ = $n2.styleRule.loadRulesFromObject(opts.styles);
+			this.styleRules = $n2.styleRule.loadRulesFromObject(opts.styles);
 
 			this._drawMap();
 
@@ -205,11 +230,6 @@ class N2MapCanvas  {
 
 	};
 
-	_registerLayerForEvents(layerInfo) {
-
-
-
-	};
 	_getElem(){
 			var $elem = $('#'+this.canvasId);
 			if( $elem.length < 1 ){
@@ -242,11 +262,16 @@ class N2MapCanvas  {
 				target : this.canvasId,
 				view: olView
 			});
+			
+			this.interactionSet.selectInteraction = new N2Select({map: customMap});
+
 //------------------------------
 //------------------------------ create and add layers
-			this.overlayLayers = this._genOverlayMapLayers(this.sources, customMap);
+			this.overlayLayers = this._genOverlayMapLayers(this.sources);
 			this.mapLayers = this._genBackgroundMapLayers(this.bgSources);
+			
 
+			
 			/**
 			* Two Groups : Overlay and Background
 			*/
@@ -275,49 +300,40 @@ class N2MapCanvas  {
 			mainbar.setPosition("top");
 			/* Nested toobar with one control activated at once */
 			var nested = new Bar ({ toggleOne: true, group:true });
-			var selectInteraction= new SelectInteraction ();
+//			var selectInteraction= new SelectInteraction ();
 			mainbar.addControl (nested);
+			
+			
 			// Add selection tool (a toggle control with a select interaction)
 			var selectCtrl = new Toggle(
 					{	html: '<i class="fa fa-hand-pointer-o"></i>',
 						className: "select",
 						title: "Select",
-						interaction: selectInteraction,
+						interaction: this.interactionSet.selectInteraction,
 						active:true,
 						onToggle: function(active)
 						{
 						}
 					});
-			selectInteraction.on("select", (function(e) {
-				this._retrivingDocsAndSendSelectedEvent(e.selected);
+			this.interactionSet.selectInteraction.on("clicked", (function(e) {
+				if (e.selected) {
+					this._retrivingDocsAndSendSelectedEvent(e.selected);
+				}	
 				}).bind(this)
+				
 			);
 			nested.addControl(selectCtrl);
 
-			// Add N2selection tool (a N2select interaction to trigger n2Intent label)
-			// var n2selectInter = new N2Select({map: customMap});
-			// var n2selectCtrl = new Toggle(
-			// 		{	html: '<i class="fa fa-hand-pointer-o"></i>',
-			// 			className: "n2select",
-			// 			title: "N2Select",
-			// 			interaction: n2selectInter,
-			// 			active:true,
-			// 			onToggle: function(active)
-			// 			{
-			// 			}
-			// 		});
-			//
-			// nested.addControl(n2selectCtrl);
-
+			this.interactionSet.drawInteraction = new DrawInteraction
+			({	type: 'Point',
+				source: this.overlayLayers[0].getSource()
+			});
 			// Add editing tools
 			var pedit = new Toggle(
 					{	html: '<i class="fa fa-map-marker" ></i>',
 						className: "edit",
 						title: 'Point',
-						interaction: new DrawInteraction
-						({	type: 'Point',
-							source: this.overlayLayers[0].getSource()
-						}),
+						interaction: this.interactionSet.drawInteraction,
 						onToggle: function(active)
 						{
 						}
@@ -362,15 +378,15 @@ class N2MapCanvas  {
 				let t = validFeatures[0];
 				_this.dispatchService.send(DH, {
 					type: 'userSelect'
-					,docId: t.get('data')._id
-					,doc: t.get('data')
+					,docId: t.data._id
+					,doc: t.data
 					,feature: t
 				})
 			} else if (1 < validFeatures.length){
 
 				let docIds = [];
 				validFeatures.forEach(function(elem) {
-					docIds.push(elem.get('data')._id);
+					docIds.push(elem.data._id);
 				})
 				_this.dispatchService.send(DH,{
 					type: 'userSelect'
@@ -382,11 +398,11 @@ class N2MapCanvas  {
 
 		function DFS(item , callback){
 			if(!item) return;
-			if ( item.get('data')){
+			if ( item.data){
 				callback (item);
 				return;
 			}
-			let innerFeatures = item.get('featuresInCluster');
+			let innerFeatures = item.cluster;
 			if( innerFeatures && Array.isArray(innerFeatures)){
 
 				for( let i=0,e=innerFeatures.length; i< e; i++){
@@ -398,8 +414,8 @@ class N2MapCanvas  {
 		}
 	}
 
-	_genOverlayMapLayers(Sources, map) {
-			const targetMap = map;
+	_genOverlayMapLayers(Sources) {
+			
 			var fg = [];
 			var _this = this;
 			if( Sources) {
@@ -410,12 +426,13 @@ class N2MapCanvas  {
 						source: source
 					});
 					var n2IntentSource = new N2SourceWithN2Intent({
-						interaction: new N2Select({map: targetMap}),
-						source: clusterSource
+						interaction: _this.interactionSet.selectInteraction,
+						source: clusterSource,
+						dispatchService: _this.dispatchService
 					});
 					var vectorLayer = new VectorLayer({
 						title: "CouchDb",
-						renderMode : 'image',
+						renderMode : 'vector',
 						source: n2IntentSource,
 						style: testingStyle,
 						renderOrder: function(feature1, feature2){
@@ -431,11 +448,29 @@ class N2MapCanvas  {
 			}
 			return (fg);
 			function testingStyle(feature, resolution){
-
-				let style = _this.Styles_.getStyle(feature);
-				let symb = style.getSymbolizer(feature);
+				
+				//(import $n2.styleRule.js).Style
+				let style = _this.styleRules.getStyle(feature);
+				
+				let symbolizer = style.getSymbolizer(feature);
+				var symbols = {};
+				symbolizer.forEachSymbol(function(name,value){
+					name = olStyleNames[name] ? olStyleNames[name] : name;
+					
+					if( stringStyles[name] ){
+						if( null === value ){
+							// Nothing
+						} else if( typeof value === 'number' ) {
+							value = value.toString();
+						};
+					};
+					
+					symbols[name] = value;
+				},feature);
+				
 				var n2mapStyles = new N2MapStyles();
-				let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symb);
+				let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols, 
+																		feature.n2_geometry);
 				//let innerStyle2 = createDefaultStyle();
 				return innerStyle;
 			}

@@ -263,9 +263,9 @@ class N2CouchDbSource extends Vector {
 					feature.setGeometry(geometry);
 					if (docId && geometry) {
 						feature.setId(docId);
-						feature.set('data' ,  doc);
-						feature.set('fid', docId);
-						feature.set('n2GeomProj', new Projection({code: 'EPSG:4326'}) );
+						feature.data = doc;
+						feature.fid =  docId;
+						feature.n2GeomProj = new Projection({code: 'EPSG:4326'}) ;
 						features.push(feature);
 					} else {
 						$n2.log('Invalid feature', doc);

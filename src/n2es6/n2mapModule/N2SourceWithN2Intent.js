@@ -6,6 +6,9 @@ import VectorSource from 'ol/source/Vector.js';
 import {listen} from 'ol/events.js';
 import EventType from 'ol/events/EventType.js';
 
+
+var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
+var DH = 'n2.mapAndControls';
 /**
  * @classdesc
  * @extends VectorSource
@@ -21,6 +24,8 @@ class N2SourceWithN2Intent extends VectorSource {
 
 		super(options);
 
+		
+		this.dispatchService = options.dispatchService;
 		/**
 		 * [resolution description]
 		 * @type {number|undefined}
@@ -67,10 +72,11 @@ class N2SourceWithN2Intent extends VectorSource {
 		//-------------------------
 		listen(this.source, EventType.CHANGE, this.refresh, this);
 		
-		this.interaction_.on( "hover",  this.onHover);
-		this.interaction_.on( "clicked",  this.onClicked);
-		this.interaction_.on( "focus",  this.onFocus);
-		this.interaction_.on( "find",  this.onFind);
+		
+		//this.interaction_.on( "hover",  this.onHover.bind(this));
+		this.interaction_.on( "clicked",  this.onClicked.bind(this));
+		this.interaction_.on( "focus",  this.onFocus.bind(this));
+		this.interaction_.on( "find",  this.onFind.bind(this));
 
 	}
 
@@ -80,7 +86,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		
 		//In case, there is single feature inside a N2Cluster features collection
 	    if (selected){
-	    	let innerFeatures = selected.get('featuresInCluster');
+	    	let innerFeatures = selected.cluster;
 	    	if( innerFeatures && innerFeatures.length == 1){
 	    		selected = innerFeatures[0];
 	    	}
@@ -91,13 +97,14 @@ class N2SourceWithN2Intent extends VectorSource {
 	    }
 	    
 	    this._endHover();
-	    this.hoverInfo.feature = feature;
+	    this.hoverInfo.feature = selected;
 	    
 	    if( this.interaction_.onStartHover ) {
-	    	this.interaction_.onStartHover (feature);
-	    }
-		console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
-			"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));
+	    	this.interaction_.onStartHover (selected);
+		}
+		//console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
+		//	"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));	
+	    this.refresh();
 		return true;
 	}
 	//clear up for hover
@@ -112,41 +119,53 @@ class N2SourceWithN2Intent extends VectorSource {
 	}
 	
 	onClicked(evt){
-		let selected , deselected;
-		if ( evt.selected ) {
-			if ( evt.selected.length === 1 ){
-				selected = evt.selected[0];
+		
+		let selected = evt.selected;
+		let deselected = evt.deselected;
+		if ( selected && selected.length >= 0) {
+			if ( selected.length === 1 ){
+				selected = selected[0];
+			} else if (selected.length === 0){
+				selected = null;
 			} else {
-				throw new Error ("Nunaliit only support single click");
+				throw new Error ("Nunaliit only support click one item a time");
 			}
 		}
 		
-		if ( evt.deselected ) {
-			if ( evt.deselected.length === 1 ){
-				deselected = evt.deselected[0];
+		if ( deselected && deselected.length >= 0) {
+			if ( deselected.length === 1 ){
+				deselected = deselected[0];
+			} else if (deselected.length === 0) {
+				deselected = null;
 			} else {
-				throw new Error ("Nunaliit only support single click");
+				throw new Error ("Nunaliit only support click one item a time");
 			}
 		}
 		//In case, there is single feature inside a N2Cluster features collection
 		if( selected ){
-			let innerFeatures = selected.get('featuresInCluster');
+			let innerFeatures = selected.cluster;
 			if( innerFeatures && innerFeatures.length == 1){
 				selected = innerFeatures[0];
 			}
 		}
 		
 		if( deselected ){
-			let innerFeatures = deselected.get('featuresInCluster');
+			let innerFeatures = deselected.cluster;
 			if( innerFeatures && innerFeatures.length == 1){
 				deselected = innerFeatures[0];
 			}
 		}
 		this._endClicked();
-		if (typeof deselected !== 'undefined') {
-			this._dispatch({type:'userUnselect',docId:deselected.fid});
+		if (deselected
+				&& deselected.fid
+				&& typeof deselected !== 'undefined' && deselected) {
+			this._dispatch({type: 'userUnselect',
+							docId: deselected.fid
+							});
 		}
-		if (typeof selected !== 'undefined') {
+		if ( selected 
+				&& selected.fid 
+				&&typeof selected !== 'undefined' ) {
 			this.clickedInfo.features = [selected];
 
 			this.clickedInfo.fids = {};
@@ -154,14 +173,14 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.clickedInfo.selectedId = selected.fid;
 			
 			selected.isClicked = true;
-			//ol2's layer drawFeature here, but I don't think we need that in ol5
+			//In ol2's implementation, layer drawFeature here, but I don't think we need that in ol5
 			//I will see.
+			//Exec each interaction's startClick callback
 			if( this.interaction_.onStartClick ) {
 				this.interaction_.onStartClick(selected);
 			};
 		}
-		
-		
+		this.refresh();
 		return true;
 	}
 	//clear up for click
@@ -171,14 +190,21 @@ class N2SourceWithN2Intent extends VectorSource {
 				var feature = this.clickedInfo.features[i];
 				
 				if( feature.isClicked ) {
+					this.clickedInfo.fids = {};
 					feature.isClicked = false;
 					feature.n2SelectIntent = null;
 				}
 			}
 		}
+		
+		this.clickedInfo.endFn = [];
+		this.clickedInfo.features = [];
+		this.clickedInfo.fids = {};
+		this.clickedInfo.selectedId = null;
 	}
 			
 	onFocus(evt){
+		
 		return true;
 	}
 	onFind(evt){
@@ -203,6 +229,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		this.updateN2Label();
 		this.addFeatures(this.features_);
 		super.refresh();
+		this.changed();
 	}
 
 	/**
@@ -216,6 +243,8 @@ class N2SourceWithN2Intent extends VectorSource {
 		let features = this.source.getFeatures();
 		if( features ) {
 				for(let i=0,e=features.length;i<e;++i){
+					
+					//Deal with n2_ tags to support style system
 					var f = features[i];
 					if( this.clickedInfo.fids[f.fid] ){
 						var featureInfo = this.clickedInfo.fids[f.fid];
@@ -224,29 +253,45 @@ class N2SourceWithN2Intent extends VectorSource {
 
 						if( featureInfo.clicked ) {
 							f.isClicked = true;
+							f.n2_selected = true;
 						};
 
 						if( featureInfo.intent ) {
 							f.n2SelectIntent = featureInfo.intent;
 						};
+					} else {
+						f.n2_selected = false;
 					};
 					if( this.focusInfo.fids[f.fid] ){
 						this.focusInfo.features.push(f);
 						f.isHovered = true;
+						f.n2_hovered = true;
+					} else {
+						f.n2_hovered = false;
 					};
 					if( this.findFeatureInfo.fid === f.fid ){
 						this.findFeatureInfo.features.push(f);
 						f.n2Intent = 'find';
+						f.n2_found = true;
+					} else {
+						f.n2_found = false;
 					};
-					let featuresInCluster = f.get('featuresInCluster');
+					
+					//Deal with cluster feature n2_ tags
+					
+					let featuresInCluster = f.cluster;
 					if( featuresInCluster && Array.isArray(featuresInCluster) ){
 						for(let j=0,k=featuresInCluster.length; j<k; ++j){
 							let clusterFeature = featuresInCluster[j];
-							if( this.clickedInfo.fids[clusterFeature.fid] ){
-								var featureInfo = this.clickedInfo.fids[clusterFeature.fid];
+							let featureInfo = this.clickedInfo.fids[clusterFeature.fid];
+							
+							if( featureInfo ){
 								this.clickedInfo.features.push(f);
-								if( featureInfo.clicked ) {
+								if( clusterFeature.isClicked || featureInfo.clicked ) {
 									f.isClicked = true;
+									f.n2_selected = true;
+								} else {
+									f.n2_selected = false;
 								};
 								if( featureInfo.intent ) {
 									f.n2SelectIntent = featureInfo.intent;
@@ -255,13 +300,49 @@ class N2SourceWithN2Intent extends VectorSource {
 							if( this.focusInfo.fids[clusterFeature.fid] ){
 								this.focusInfo.features.push(f);
 								f.isHovered = true;
+								f.n2_hovered = true;
+							} else {
+								f.n2_hovered = false;
 							};
 							if( this.findFeatureInfo.fid === clusterFeature.fid ){
 								this.findFeatureInfo.features.push(f);
 								f.n2Intent = 'find';
+								f.n2_found = true;
+							} else {
+								f.n2_found = false;
 							};
 						};
 					};
+					
+					//Deal with _n2Type tag
+					var geomType = f.getGeometry()._n2Type;
+					if ( !geomType ) {
+						if ( f
+								.getGeometry()
+								.getType()
+								.indexOf('Line') >= 0){
+							geomType = f.getGeometry()._n2Type = 'line';
+							
+						} else if ( f
+									.getGeometry()
+									.getType()
+									.indexOf('Polygon') >= 0){
+							geomType = f.getGeometry()._n2Type = 'polygon';
+						} else {
+							geomType = f.getGeometry()._n2Type = 'point';
+						}
+					}
+					f.n2_geometry = geomType;
+					
+					//Deal with n2_doc tag
+					var data = f.data;
+					if (f 
+						&& f.cluster
+						&& f.cluster.length === 1) {
+						data = f.cluster[0].data;
+					};
+					f.n2_doc = data;
+					
 					this.features_.push(f);
 				};
 			};
@@ -270,8 +351,8 @@ class N2SourceWithN2Intent extends VectorSource {
 	
 	_getDispatchService(){
 		var d = null;
-		if( this.options.directory ) {
-			d = this.options.directory.dispatchService;
+		if( this.dispatchService ) {
+			d = this.dispatchService;
 		};
 		
 		return d;
@@ -283,11 +364,5 @@ class N2SourceWithN2Intent extends VectorSource {
 			dispatcher.send(DH,m);
 		};
 	}
-
-
-
-
-
-
 }
  export default N2SourceWithN2Intent;

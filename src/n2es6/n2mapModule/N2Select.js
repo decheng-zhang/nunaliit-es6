@@ -64,7 +64,7 @@ class N2Select extends Interaction {
 		super({
 			handleEvent: handleEvent_
 		});
-		this.hitTolerance_ = options.hitTolerance ? options.hitTolerance : 4;
+		this.hitTolerance_ = options.hitTolerance ? options.hitTolerance : 2;
 
 		/**
 	     * @private
@@ -106,12 +106,7 @@ class N2Select extends Interaction {
 
 		}
 	}
-
-
-
-
 }
-
   /**
    * [handleMove_ description]
    * @param  {import("../MapBrowserEvent.js").default} mapBrowserEvent [description]
@@ -135,8 +130,6 @@ class N2Select extends Interaction {
 					{
 						hitTolerance: this.hitTolerance_
 					});
-				
-	
 
 			    if ( this.hoveredFeature_ === selected ) {
 					/* no hovered changed */
@@ -147,8 +140,8 @@ class N2Select extends Interaction {
 						new N2SelectEvent(N2SelectEventType.HOVER,
 							selected || null, deselected, mapBrowserEvent)
 						);
-
 				}
+			    
 			} else if (mapBrowserEvent.type == 'click') {
 
 				let selected = [];
