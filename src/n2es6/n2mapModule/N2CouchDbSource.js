@@ -16,7 +16,7 @@ var DH = 'n2.canvasMap';
 
 /**
 * @classdesc
-* The N2CouchDbSource class is the extended vector source using in
+* The N2CouchDbSource class is the customized vector source using in
 * nunaliit map module.
 * @api
 */
@@ -27,7 +27,7 @@ class N2CouchDbSource extends Vector {
 			,dispatchService: undefined
 			,projCode: undefined
 		},opts_);
-		super(opts_);
+		super(opts);
 
 		this.sourceId = null;
 		this.sourceModelId = null;
