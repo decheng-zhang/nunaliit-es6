@@ -8,6 +8,7 @@ import WKT from 'ol/format/WKT.js';
 import Feature from 'ol/Feature.js';
 import {getTransform} from 'ol/proj.js';
 import {default as Projection} from 'ol/proj/Projection.js';
+
 //TODO still sharing the same DH='n2.canvasMap'
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
 var DH = 'n2.canvasMap';
@@ -220,70 +221,70 @@ class N2CouchDbSource extends Vector {
 			this._reloadAllFeatures();
 		}
 
-		_getResolutionInProjection(targetResolution, proj){
+	_getResolutionInProjection(targetResolution, proj){
 
-			if( proj.getCode() !== 'EPSG:4326' ){
-				var transformFn = getTransform(proj.getCode(), 'EPSG:4326')
-				// Convert [0,0] and [0,1] to proj
-				var p0 = transformFn([0,0]);
-				var p1 = transformFn([0,1]);
+		if( proj.getCode() !== 'EPSG:4326' ){
+			var transformFn = getTransform(proj.getCode(), 'EPSG:4326')
+			// Convert [0,0] and [0,1] to proj
+			var p0 = transformFn([0,0]);
+			var p1 = transformFn([0,1]);
 
-				var factor = Math.sqrt( ((p0[0]-p1[0])*(p0[0]-p1[0])) + ((p0[1]-p1[1])*(p0[1]-p1[1])) );
+			var factor = Math.sqrt( ((p0[0]-p1[0])*(p0[0]-p1[0])) + ((p0[1]-p1[1])*(p0[1]-p1[1])) );
 
-				targetResolution = targetResolution * factor;
+			targetResolution = targetResolution * factor;
+		};
+
+		return targetResolution;
+	}
+
+	_reloadAllFeatures(){
+		var _this = this;
+
+		var wktFormat = new WKT();
+
+		var features = [];
+		for(var docId in this.infoByDocId){
+			var docInfo = this.infoByDocId[docId];
+			var doc = docInfo.doc;
+			if( doc
+				&& doc.nunaliit_geom
+				&& doc.nunaliit_geom.wkt ){
+					var wkt = doc.nunaliit_geom.wkt;
+					if( docInfo.simplifiedName
+						&& docInfo.simplifications
+						&& docInfo.simplifications[docInfo.simplifiedName] ) {
+							// If there is a simplification loaded for this geometry,
+							// use it
+							wkt = docInfo.simplifications[docInfo.simplifiedName];
+							docInfo.simplifiedInstalled = docInfo.simplifiedName;
+					};
+				var geometry = wktFormat.readGeometryFromText(wkt);
+				geometry.transform('EPSG:4326', _this.mapProjCode);
+				var feature = new Feature();
+				feature.setGeometry(geometry);
+				if (docId && geometry) {
+					feature.setId(docId);
+					feature.data = doc;
+					feature.fid =  docId;
+					feature.n2GeomProj = new Projection({code: 'EPSG:4326'}) ;
+					features.push(feature);
+				} else {
+					$n2.log('Invalid feature', doc);
+				}
+				
+				
+				//docInfo.feature = feature;
+						// 				if (geoJSONFeature['properties']) {
+						// 					feature.setProperties(geoJSONFeature['properties']);
+						// 				}
+
+				
 			};
+		};
 
-			return targetResolution;
-		}
-
-		_reloadAllFeatures(){
-			var _this = this;
-
-			var wktFormat = new WKT();
-
-			var features = [];
-			for(var docId in this.infoByDocId){
-				var docInfo = this.infoByDocId[docId];
-				var doc = docInfo.doc;
-				if( doc
-					&& doc.nunaliit_geom
-					&& doc.nunaliit_geom.wkt ){
-						var wkt = doc.nunaliit_geom.wkt;
-						if( docInfo.simplifiedName
-							&& docInfo.simplifications
-							&& docInfo.simplifications[docInfo.simplifiedName] ) {
-								// If there is a simplification loaded for this geometry,
-								// use it
-								wkt = docInfo.simplifications[docInfo.simplifiedName];
-								docInfo.simplifiedInstalled = docInfo.simplifiedName;
-						};
-					var geometry = wktFormat.readGeometryFromText(wkt);
-					geometry.transform('EPSG:4326', _this.mapProjCode);
-					var feature = new Feature();
-					feature.setGeometry(geometry);
-					if (docId && geometry) {
-						feature.setId(docId);
-						feature.data = doc;
-						feature.fid =  docId;
-						feature.n2GeomProj = new Projection({code: 'EPSG:4326'}) ;
-						features.push(feature);
-					} else {
-						$n2.log('Invalid feature', doc);
-					}
-					
-					
-					//docInfo.feature = feature;
-							// 				if (geoJSONFeature['properties']) {
-							// 					feature.setProperties(geoJSONFeature['properties']);
-							// 				}
-
-					
-				};
-			};
-
-					this.clear();
-					this.addFeatures(features);
-		}
+				this.clear();
+				this.addFeatures(features);
+	}
 }
 
 export default N2CouchDbSource;

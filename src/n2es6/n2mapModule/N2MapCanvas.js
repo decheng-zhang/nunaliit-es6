@@ -4,6 +4,7 @@
 
 import 'ol/ol.css';
 import {default as CouchDbSource} from './N2CouchDbSource.js';
+import N2ModelSource from './N2ModelSource.js';
 import {default as LayerInfo} from './N2LayerInfo';
 import {default as N2MapStyles} from './N2MapStyles.js';
 import {createDefaultStyle} from 'ol/style/Style.js'
@@ -140,7 +141,7 @@ class N2MapCanvas  {
 					drawInteraction : null
 			};
 			this.currentInteract = null;
-			this._prepOverlay(opts.overlays ,this.sources, this.overlayInfos);
+			this._processOverlay(opts.overlays ,this.sources, this.overlayInfos);
 
 			// Register to events
 			if( this.dispatchService ){
@@ -175,29 +176,28 @@ class N2MapCanvas  {
 	* @param  {Array} sources [description]
 	* @param  {Array} overlayInfos [description]
 	*/
-	_prepOverlay (overlays, sources, overlayInfos) {
+	_processOverlay (overlays, sources, overlayInfos) {
+		
+		
+		var _this = this;
 		if( $n2.isArray(overlays) ){
 			overlays.forEach( (function(overlay){
 
-				//Generate Array<layerInfo> layerInfos;
-//				var layerInfoOptions = jQuery.extend({
-//					styleMapFn: function(layerInfo) {
-//						return createStyleMapFromLayerInfo(layerInfo);
-//					}
-//				}, overlays);
-//				var layerInfo = new LayerInfo(layerInfoOptions);
-//				var layerOptions = {
-//					name: layerInfo.name
-//					,projection: layerInfo.sourceProjection
-//					,visibility: layerInfo.visibility
-//					,_layerInfo: layerInfo
-//				};
-//
-//				overlayInfos.push(layerOptions);
+				// Generate Array<layerInfo> layerInfos;
+				var layerInfoOptions = overlay;
+				var layerInfo = new LayerInfo(layerInfoOptions);
+				var layerOptions = {
+					name: layerInfo.name
+					,projection: layerInfo.sourceProjection
+					,visibility: layerInfo.visibility
+					,_layerInfo: layerInfo
+				};
+
+				overlayInfos.push(layerOptions);
 				//---------------------
 				//---------------------
 				if ('couchdb' === overlay.type) {
-					var sourceModelId = undefined;
+					let sourceModelId = undefined;
 					if( overlay.options
 						&& 'string' === typeof overlay.options.sourceModelId ){
 							sourceModelId = overlay.options.sourceModelId;
@@ -216,8 +216,38 @@ class N2MapCanvas  {
 								});
 								this.sources.push(source);
 							};
-				} else if ('model' ===  overlay.type ) {
-					$n2.logError(overlay.type + 'is constructing');
+				} else if ( 'model' ===  overlay.type ) {
+					
+					let sourceModelId = undefined;
+					if( overlay.options
+						&& 'string' === typeof overlay.options.sourceModelId ){
+							sourceModelId = overlay.options.sourceModelId;
+						} else if( overlay.options
+							&& 'string' === typeof overlay.options.layerName ){
+								sourceModelId = overlay.options.layerName;
+							} else {
+								$n2.logError('Map canvas overlay is not named. Will be ignored');
+							};
+
+							if( sourceModelId ){
+								var source = new N2ModelSource({
+									sourceModelId: sourceModelId
+									,dispatchService: this.dispatchService
+									,projCode: 'EPSG:3857'
+									,onUpdateCallback : function(state){
+										//_this._modelLayerUpdated(layerOptions, state);
+									}
+									,notifications: {
+										readStart: function(){
+											//_this._mapBusyStatus(1);
+										}
+										,readEnd: function(){
+											//_this._mapBusyStatus(-1);
+										}
+									}
+								});
+								this.sources.push(source);
+							};
 				} else if ('wfs' === overlay.type) {
 					$n2.logError(overlay.type + 'is constructing');
 				} else {
@@ -230,6 +260,23 @@ class N2MapCanvas  {
 
 	};
 
+	
+	_mapBusyStatus(delta){
+		//TODO new version of progressControl
+//		var previous = this.mapBusyCount;
+//		this.mapBusyCount += delta;
+//		if( previous < 1 && this.mapBusyCount > 0 ) {
+//			$n2.log('Start map busy');
+//		};
+//		if( previous > 0 && this.mapBusyCount < 1 ) {
+//			$n2.log('End map busy');
+//		};
+//		if( this.busyMapControl && delta < 0 ) {
+//			this.busyMapControl.decreaseCounter();
+//		} else if( this.busyMapControl && delta > 0 ) {
+//			this.busyMapControl.increaseCounter();
+//		}
+	}
 	_getElem(){
 			var $elem = $('#'+this.canvasId);
 			if( $elem.length < 1 ){
@@ -396,7 +443,7 @@ class N2MapCanvas  {
 		};
 
 
-		function DFS(item , callback){
+		function DFS(item, callback){
 			if(!item) return;
 			if ( item.data){
 				callback (item);
@@ -404,13 +451,10 @@ class N2MapCanvas  {
 			}
 			let innerFeatures = item.cluster;
 			if( innerFeatures && Array.isArray(innerFeatures)){
-
 				for( let i=0,e=innerFeatures.length; i< e; i++){
-
 					DFS(innerFeatures[i], callback);
 				}
 			}
-
 		}
 	}
 

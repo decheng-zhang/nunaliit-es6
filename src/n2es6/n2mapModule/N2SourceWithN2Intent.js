@@ -8,7 +8,7 @@ import EventType from 'ol/events/EventType.js';
 
 
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
-var DH = 'n2.mapAndControls';
+var DH = 'n2.canvasMap';
 /**
  * @classdesc
  * @extends VectorSource

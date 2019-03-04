@@ -113,76 +113,79 @@ class N2Select extends Interaction {
    * @return {[type]}   [description]
    * @this {N2Select}
    */
-   function handleEvent_(mapBrowserEvent) {
+function handleEvent_(mapBrowserEvent) {
 
-			const map = mapBrowserEvent.map;
-			//** handle hover event **///
-			//TODO make a list of n2.interaction, instead all take care by this interaction object.
-			if (mapBrowserEvent.type == "pointermove") {
-				let selected = null ;
-				let deselected = null;
+	const map = mapBrowserEvent.map;
+	//** handle hover event **///
+	//TODO make a list of n2.interaction, instead all take care by this interaction object.
+	if (mapBrowserEvent.type == "pointermove") {
+		let selected = null ;
+		let deselected = null;
 
-				map.forEachFeatureAtPixel(mapBrowserEvent.pixel,
-					(function(f){
-						selected = f;
-						return true;
-					}).bind(this),
-					{
-						hitTolerance: this.hitTolerance_
-					});
+		map.forEachFeatureAtPixel(mapBrowserEvent.pixel,
+				(function(f){
+					selected = f;
+					return true;
+				}).bind(this),
+				{
+			hitTolerance: this.hitTolerance_
+				});
 
-			    if ( this.hoveredFeature_ === selected ) {
-					/* no hovered changed */
-			    } else {
-				deselected = this.hoveredFeature_;
-				this.hoveredFeature_ = selected;
-				this.dispatchEvent(
-						new N2SelectEvent(N2SelectEventType.HOVER,
+		if ( this.hoveredFeature_ === selected ) {
+			/* no hovered changed */
+		} else {
+			deselected = this.hoveredFeature_;
+			this.hoveredFeature_ = selected;
+			this.dispatchEvent(
+					new N2SelectEvent(N2SelectEventType.HOVER,
 							selected || null, deselected, mapBrowserEvent)
-						);
-				}
-			    
-			} else if (mapBrowserEvent.type == 'click') {
+			);
+		}
 
-				let selected = [];
-				let deselected = [];
-				map.forEachFeatureAtPixel(mapBrowserEvent.pixel,
-			      (
-			        /**
-			         * @param {import("../Feature.js").FeatureLike} feature Feature.
-			         * @param {import("../layer/Layer.js").default} layer Layer.
-			         * @return {boolean|undefined} Continue to iterate over the features.
-			         */
-			        function(feature, layer) {
-			          if (feature) {
-			            selected.push(feature);
-			            return true;
-			          }
-			        }).bind(this), {
-			        hitTolerance: this.hitTolerance_
-			      });
-			    for (let i = this.clickedFeatures_.length - 1; i >= 0; --i) {
-			      const feature = this.clickedFeatures_[i];
-			      const index = selected.indexOf(feature);
-			      if (index > -1) {
-			        // feature is already selected
-			        selected.splice(index, 1);
-			      } else {
-			        this.clickedFeatures_.splice(i, 1);
-			        deselected.push(feature);
-			      }
-			    }
-			    if (selected.length !== 0) {
-			      Array.prototype.push.apply(this.clickedFeatures_, selected);
-			    }
-				if (selected.length > 0 || deselected.length > 0) {
-			      this.dispatchEvent(
-			        new N2SelectEvent(N2SelectEventType.CLICKED,
-			          selected, deselected, mapBrowserEvent));
-			    }
+	} else if (mapBrowserEvent.type == 'click') {
+
+		let selected = [];
+		let deselected = [];
+		map.forEachFeatureAtPixel(mapBrowserEvent.pixel,
+			(
+				/**
+				 * @param {import("../Feature.js").FeatureLike}
+				 *            feature Feature.
+				 * @param {import("../layer/Layer.js").default}
+				 *            layer Layer.
+				 * @return {boolean|undefined} Continue to iterate over
+				 *         the features.
+				 */
+				function(feature, layer) {
+					if (feature) {
+						selected.push(feature);
+						return true;
+					}
+				}).bind(this), {
+			hitTolerance: this.hitTolerance_
+		});
+		for (let i = this.clickedFeatures_.length - 1; i >= 0; --i) {
+			const feature = this.clickedFeatures_[i];
+			const index = selected.indexOf(feature);
+			if (index > -1) {
+				// feature is already selected
+				selected.splice(index, 1);
+			} else {
+				this.clickedFeatures_.splice(i, 1);
+				deselected.push(feature);
 			}
-			//keep mapBrowserEvent propagating
-			return true;
+		}
+		if (selected.length !== 0) {
+			Array.prototype.push.apply(this.clickedFeatures_, selected);
+		}
+		if (selected.length > 0 || deselected.length > 0) {
+			this.dispatchEvent(
+					new N2SelectEvent(N2SelectEventType.CLICKED,
+							selected, deselected, mapBrowserEvent));
+		}
 	}
+	//keep mapBrowserEvent propagating
+	return true;
+}
 
 	export default N2Select;
