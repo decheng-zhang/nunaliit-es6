@@ -136,6 +136,11 @@ class N2MapCanvas  {
 
 			this.mapLayers = [];
 			this.overlayLayers = [];
+			
+			/**
+			 * @type { hashset<(import ol/interaction).like> }
+			 * This hashset store all the interaction used in different toolbar-controls
+			 */
 			this.interactionSet = {
 					selectInteraction : null,
 					drawInteraction : null
@@ -216,7 +221,7 @@ class N2MapCanvas  {
 								});
 								this.sources.push(source);
 							};
-				} else if ( 'model' ===  overlay.type ) {
+				} else if ( 'model' === overlay.type ) {
 					
 					let sourceModelId = undefined;
 					if( overlay.options
@@ -315,10 +320,7 @@ class N2MapCanvas  {
 //------------------------------
 //------------------------------ create and add layers
 			this.overlayLayers = this._genOverlayMapLayers(this.sources);
-			this.mapLayers = this._genBackgroundMapLayers(this.bgSources);
-			
-
-			
+			this.mapLayers = this._genBackgroundMapLayers(this.bgSources);	
 			/**
 			* Two Groups : Overlay and Background
 			*/
@@ -518,13 +520,6 @@ class N2MapCanvas  {
 				//let innerStyle2 = createDefaultStyle();
 				return innerStyle;
 			}
-//			function createStyleFunction(lyStyleMap) {
-//				return 	function testingStyle(feature, resolution){
-//					lyStyleMap
-//					let innerStyle = createDefaultStyle(feature,resolution,);
-//					return innerStyle;
-//				}
-//			}
 	}
 	_genBackgroundMapLayers(bgSources) {
 			var _this = this;

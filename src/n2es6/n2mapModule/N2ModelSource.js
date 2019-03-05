@@ -32,7 +32,7 @@ class N2ModelSource extends Vector {
 		this.sourceModelId = options.sourceModelId;
 		this.mapProjCode = options.projCode;
 
-
+		this.epsg4326Resolution = null;
 		this.onUpdateCallback = options.onUpdateCallback;
 		this.callback = null;
 		this.scope = null;
@@ -40,7 +40,7 @@ class N2ModelSource extends Vector {
 		this.wildcarded = false;
 
 
-
+		this.sourceId = $n2.getUniqueId();
 		this.infoByDocId = {};
 
 		this.loading = false;
@@ -54,7 +54,15 @@ class N2ModelSource extends Vector {
 				_this._modelSourceUpdated(state);
 			}
 		});
+		if( this.dispatchService ){
+			var f = function(m, addr, dispatcher){
+				_this._handleDispatch(m, addr, dispatcher);
+			};
 
+			//this.dispatchService.register(DH,'modelGetInfo',f);
+			//this.dispatchService.register(DH,'modelStateUpdated',f);
+			this.dispatchService.register(DH,'simplifiedGeometryReport',f);
+		};
 	}
 
 	_modelSourceUpdated (state) {
@@ -105,8 +113,8 @@ class N2ModelSource extends Vector {
 				delete _this.infoByDocId[docId];
 			});
 		};
-		if (onUpdateCallback
-				&& typeof onUpdateCallback === 'function') {
+		if (this.onUpdateCallback
+				&& typeof this.onUpdateCallback === 'function') {
 			this.onUpdateCallback(state);
 		}
 		this._reloadAllFeatures();
@@ -128,6 +136,34 @@ class N2ModelSource extends Vector {
 		};
 	}
 
+	
+	_handleDispatch(m, addr, dispatcher){
+		var _this = this;
+
+		if('simplifiedGeometryReport' === m.type) {
+			if( $n2.isArray(m.simplifiedGeometries) ){
+				var atLeastOne = false;
+				m.simplifiedGeometries.forEach(function(simplifiedGeom){
+					var docId = simplifiedGeom.id;
+					var attName = simplifiedGeom.attName;
+					var wkt = simplifiedGeom.wkt;
+
+					var docInfo = _this.infoByDocId[docId];
+					if( docInfo ){
+						if( !docInfo.simplifications ){
+							docInfo.simplifications = {};
+						};
+						docInfo.simplifications[attName] = wkt;
+						atLeastOne = true;
+					};
+				});
+
+				if( atLeastOne ){
+					this._reloadAllFeatures();
+				};
+			};
+		}
+	}
 	/**
 	 * This function is called when the map resolution is changed
 	 */

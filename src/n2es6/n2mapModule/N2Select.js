@@ -6,6 +6,8 @@ import {getUid} from 'ol/util.js';
 import {default as Interaction} from 'ol/interaction/Interaction.js';
 import {singleClick, never, shiftKeyOnly, pointerMove} from 'ol/events/condition.js';
 import Event from 'ol/events/Event.js';
+var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
+var DH = 'n2.canvasMap';
 
 const N2SelectEventType = {
 	/**
@@ -42,13 +44,13 @@ class N2SelectEvent extends Event {
 	 * [constructor description]
 	 * @param {N2SelectEventType} type            [description]
 	 * @param {Array|import("ol/Feature.js").default} selected        [description]
-	 * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent [description]
+	 * @param {import("../MapBrowserEvent.js").default} upstreamEvent|mapBrowserEvent [description]
 	 */
-	constructor(type, selected ,deselected, mapBrowserEvent) {
+	constructor(type, selected ,deselected, upstreamEvent) {
 		super(type);
 		this.selected  = selected;
 		this.deselected = deselected;
-		this.mapBrowserEvent = mapBrowserEvent;
+		this.upstreamEvent = upstreamEvent;
 	}
 }
 /**
@@ -74,12 +76,14 @@ class N2Select extends Interaction {
 
 		//clicked can return multiple ones.
 		this.clickedFeatures_ = [];
-
+		
 		//hover can only hover one
 		this.hoveredFeature_ = null;
 
 		this.map_ = options.map ? options.map : null;
+		
 		this.setActive(true);
+		
 	}
 	getHoveredFeatures() {
 		return this.hoveredFeatures_;
@@ -106,6 +110,8 @@ class N2Select extends Interaction {
 
 		}
 	}
+	
+	
 }
   /**
    * [handleMove_ description]
