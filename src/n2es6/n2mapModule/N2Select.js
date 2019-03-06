@@ -4,7 +4,7 @@
 
 import {getUid} from 'ol/util.js';
 import {default as Interaction} from 'ol/interaction/Interaction.js';
-import {singleClick, never, shiftKeyOnly, pointerMove} from 'ol/events/condition.js';
+import {singleClick, never,click, shiftKeyOnly, pointerMove} from 'ol/events/condition.js';
 import Event from 'ol/events/Event.js';
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
 var DH = 'n2.canvasMap';
@@ -74,6 +74,7 @@ class N2Select extends Interaction {
 	     */
 	    this.multi_ = options.multi ? options.multi : false;
 
+	    this.clickCondition_ = click;
 		//clicked can return multiple ones.
 		this.clickedFeatures_ = [];
 		
@@ -124,6 +125,10 @@ function handleEvent_(mapBrowserEvent) {
 	const map = mapBrowserEvent.map;
 	//** handle hover event **///
 	//TODO make a list of n2.interaction, instead all take care by this interaction object.
+	if (!pointerMove(mapBrowserEvent) && !click(mapBrowserEvent) ) {
+		return true;
+	}
+	
 	if (mapBrowserEvent.type == "pointermove") {
 		let selected = null ;
 		let deselected = null;
@@ -148,7 +153,7 @@ function handleEvent_(mapBrowserEvent) {
 			);
 		}
 
-	} else if (mapBrowserEvent.type == 'click') {
+	} else if (this.clickCondition_(mapBrowserEvent)) {
 
 		let selected = [];
 		let deselected = [];
@@ -191,7 +196,8 @@ function handleEvent_(mapBrowserEvent) {
 		//}
 	}
 	//keep mapBrowserEvent propagating
-	return true;
+	
+	return pointerMove(mapBrowserEvent);
 }
 
 	export default N2Select;

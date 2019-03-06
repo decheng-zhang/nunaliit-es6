@@ -399,19 +399,31 @@ class N2SourceWithN2Intent extends VectorSource {
 			}
 		}
 	
+		if (!selected && this.clickedInfo.selectedId ) {
+			this._dispatch({type: 'userUnselect',
+				docId: this.clickedInfo.selectedId
+				});
+			this.refresh();
+			return false;
+		}
+		
 		let clickedAgain = false;
 		clickedAgain = (selected && selected.fid 
 				&& this.clickedInfo.selectedId === selected.fid );
-		
+		if (!this.toggleClick && clickedAgain){
+			return false;
+		}
 		this._endClicked();
 		
 		if (this.toggleClick && clickedAgain ){
 			this._dispatch({type: 'userUnselect',
 							docId: selected.fid
 							});
+			//selected.changed();
+			this.refresh();
+			return false;
 		} else if ( selected 
-				&& selected.fid 
-				&&typeof selected !== 'undefined' ) {
+				&& selected.fid ) {
 			this.clickedInfo.features = [selected];
 
 			this.clickedInfo.fids = {};
@@ -420,7 +432,7 @@ class N2SourceWithN2Intent extends VectorSource {
 			
 			selected.isClicked = true;
 			
-			selected.changed();
+			//selected.changed();
 			if( this.interaction_.onStartClick ) {
 				this.interaction_.onStartClick(selected);
 			};
@@ -438,7 +450,7 @@ class N2SourceWithN2Intent extends VectorSource {
 					this.clickedInfo.fids = {};
 					feature.isClicked = false;
 					feature.n2SelectIntent = null;
-					feature.changed();
+					//feature.changed();
 				}
 			}
 		}
@@ -808,7 +820,7 @@ class N2SourceWithN2Intent extends VectorSource {
 			
 		}  else if( 'unselected' === type ) {
 			this._endClicked();
-			
+			this.refresh();
 		}
 	}
 	
