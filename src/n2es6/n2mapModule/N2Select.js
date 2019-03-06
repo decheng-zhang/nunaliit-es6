@@ -170,25 +170,25 @@ function handleEvent_(mapBrowserEvent) {
 				}).bind(this), {
 			hitTolerance: this.hitTolerance_
 		});
-		for (let i = this.clickedFeatures_.length - 1; i >= 0; --i) {
-			const feature = this.clickedFeatures_[i];
-			const index = selected.indexOf(feature);
-			if (index > -1) {
-				// feature is already selected
-				selected.splice(index, 1);
-			} else {
-				this.clickedFeatures_.splice(i, 1);
-				deselected.push(feature);
-			}
-		}
-		if (selected.length !== 0) {
-			Array.prototype.push.apply(this.clickedFeatures_, selected);
-		}
-		if (selected.length > 0 || deselected.length > 0) {
+//		for (let i = this.clickedFeatures_.length - 1; i >= 0; --i) {
+//			const feature = this.clickedFeatures_[i];
+//			const index = selected.indexOf(feature);
+//			if (index > -1) {
+//				// feature is already selected
+//				// selected.splice(index, 1);
+//			} else {
+//				this.clickedFeatures_.splice(i, 1);
+//				deselected.push(feature);
+//			}
+//		}
+//		if (selected.length !== 0) {
+//			Array.prototype.push.apply(this.clickedFeatures_, selected);
+//		}
+		//if (selected.length > 0 || deselected.length > 0) {
 			this.dispatchEvent(
 					new N2SelectEvent(N2SelectEventType.CLICKED,
 							selected, deselected, mapBrowserEvent));
-		}
+		//}
 	}
 	//keep mapBrowserEvent propagating
 	return true;

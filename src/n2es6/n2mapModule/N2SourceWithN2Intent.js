@@ -42,6 +42,9 @@ class N2SourceWithN2Intent extends VectorSource {
 		 */
 		this.features_ = [];
 
+		
+		
+		this.toggleClick = true;
 		//-------------------------
 		// HOVER and CLICK
 		this.selectFeatureControl = null;
@@ -377,7 +380,7 @@ class N2SourceWithN2Intent extends VectorSource {
 	onClicked(evt){
 		
 		let selected = evt.selected;
-		let deselected = evt.deselected;
+		
 		if ( selected && selected.length >= 0) {
 			if ( selected.length === 1 ){
 				selected = selected[0];
@@ -388,15 +391,6 @@ class N2SourceWithN2Intent extends VectorSource {
 			}
 		}
 		
-		if ( deselected && deselected.length >= 0) {
-			if ( deselected.length === 1 ){
-				deselected = deselected[0];
-			} else if (deselected.length === 0) {
-				deselected = null;
-			} else {
-				throw new Error ("Nunaliit only support click one item a time");
-			}
-		}
 		//In case, there is single feature inside a N2Cluster features collection
 		if( selected ){
 			let innerFeatures = selected.cluster;
@@ -404,22 +398,18 @@ class N2SourceWithN2Intent extends VectorSource {
 				selected = innerFeatures[0];
 			}
 		}
+	
+		let clickedAgain = false;
+		clickedAgain = (selected && selected.fid 
+				&& this.clickedInfo.selectedId === selected.fid );
 		
-		if( deselected ){
-			let innerFeatures = deselected.cluster;
-			if( innerFeatures && innerFeatures.length == 1){
-				deselected = innerFeatures[0];
-			}
-		}
 		this._endClicked();
-		if (deselected
-				&& deselected.fid
-				&& typeof deselected !== 'undefined' && deselected) {
+		
+		if (this.toggleClick && clickedAgain ){
 			this._dispatch({type: 'userUnselect',
-							docId: deselected.fid
+							docId: selected.fid
 							});
-		}
-		if ( selected 
+		} else if ( selected 
 				&& selected.fid 
 				&&typeof selected !== 'undefined' ) {
 			this.clickedInfo.features = [selected];
