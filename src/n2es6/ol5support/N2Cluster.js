@@ -5,6 +5,7 @@
 import {getUid} from 'ol/util.js';
 import {assign} from 'ol/obj.js';
 import Cluster from 'ol/source/Cluster.js';
+//import VectorSource from '';
 import {transformExtent} from 'ol/proj.js';
 import {getCenter, buffer, createEmpty, createOrUpdateFromCoordinate} from 'ol/extent.js';
 import Point from 'ol/geom/Point.js';

@@ -503,7 +503,7 @@ class N2SourceWithN2Intent extends VectorSource {
 						f.n2HoverIntent = opts.intent;
 					};
 					//if( f.layer ) f.layer.drawFeature(f);
-					if (f) f.changed();
+					//if (f) f.changed();
 					this.focusInfo.features.push( f );
 				};
 			};
@@ -517,7 +517,7 @@ class N2SourceWithN2Intent extends VectorSource {
 				feature.isHovered = false;
 				feature.n2HoverIntent = null;
 				//if( feature.layer ) feature.layer.drawFeature(feature);
-				if (feature) feature.changed();
+				//if (feature) feature.changed();
 			};
 		};
 
@@ -583,9 +583,9 @@ class N2SourceWithN2Intent extends VectorSource {
 				this.clickedInfo.features.push(feature);
 
 				feature.isClicked = true;
-				if (feature){
-					feature.changed();
-				}
+//				if (feature){
+//					feature.changed();
+//				}
 			};
 		};
 	}
@@ -614,9 +614,9 @@ class N2SourceWithN2Intent extends VectorSource {
 				if( opts.intent ){
 					f.n2SelectIntent = opts.intent;
 				};
-				if (f){
-					f.changed();
-				}
+//				if (f){
+//					f.changed();
+//				}
 			};
 		};
 	}
@@ -768,10 +768,12 @@ class N2SourceWithN2Intent extends VectorSource {
 			} else if( m.docIds ){
 				this._startFocus(m.docIds);
 			};
-			
+			this.updateN2Label();
+			this.changed();
 		} else if( 'focusOff' === type ) {
 			this._endFocus();
-			
+			this.updateN2Label();
+			this.changed();
 		} else if( 'focusOnSupplement' === type ) {
 			var fid = m.docId;
 			
@@ -792,7 +794,8 @@ class N2SourceWithN2Intent extends VectorSource {
 					,intent: m.intent
 				});
 			};
-			
+			this.updateN2Label();
+			this.changed();
 		} else if( 'selected' === type ) {
 			if( m.docId ) {
 				let fidmap = {};
@@ -808,7 +811,8 @@ class N2SourceWithN2Intent extends VectorSource {
 				var features = this._getMapFeaturesIncludeingFidMapOl5(fidmap);
 				this._selectedFeatures(features, m.docIds);
 			};
-			
+			this.updateN2Label();
+			this.changed();
 		} else if( 'selectedSupplement' === type ) {
 			let fid = m.docId;
 			if( fid ) {
@@ -821,12 +825,15 @@ class N2SourceWithN2Intent extends VectorSource {
 					,intent: m.intent
 				});
 			};
+			this.updateN2Label();
+			this.changed();
 			
 		}  else if( 'unselected' === type ) {
 			this._endClicked();
 			this.updateN2Label();
 			this.changed();
 		}
+
 	}
 	
 
