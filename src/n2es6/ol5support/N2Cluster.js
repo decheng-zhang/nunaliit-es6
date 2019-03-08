@@ -81,6 +81,12 @@ class N2Cluster extends Cluster {
 		* @type {number}
 		*/
 		this.clusterId = 1;
+		
+	    /**
+	     * @type {Array<Feature>}
+	     * @protected
+	     */
+	    this.features = [];
 
 	}
 	/**
@@ -90,7 +96,7 @@ class N2Cluster extends Cluster {
 	loadFeatures(extent, resolution, projection) {
 		this.source.loadFeatures(extent, resolution, projection);
 		if (resolution !== this.resolution) {
-			this.clear();
+			this.clear(true);
 			this.resolution = resolution;
 			this.projection = projection;
 			this.cluster();

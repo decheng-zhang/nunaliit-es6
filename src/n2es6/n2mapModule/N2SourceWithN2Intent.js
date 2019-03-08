@@ -638,7 +638,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		this.updateN2Label();
 		this.addFeaturesInternal(this.features_);
 		super.refresh();
-		this.changed();
+		
 	}
 
 	/**
