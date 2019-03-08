@@ -87,16 +87,6 @@ const stringStyles = {
 class N2MapCanvas  {
 
 	constructor(opts_){
-		this.canvasId= null;
-
-		this.sourceModelId = null;
-
-		this.elementGenerator = null;
-
-		this.dispatchService  = null;
-
-		this.showService = null;
-
 		var opts = $n2.extend({
 			canvasId: undefined
 			,sourceModelId: undefined
@@ -107,81 +97,72 @@ class N2MapCanvas  {
 		},opts_);
 
 		var _this = this;
+		this.dispatchService  = null;
 
-	//	try {
-			this.canvasId = opts.canvasId;
-			this.sourceModelId = opts.sourceModelId;
-			this.elementGenerator = opts.elementGenerator;
+		this.showService = null;
+		
+		this.canvasId = opts.canvasId;
+		this.sourceModelId = opts.sourceModelId;
+		this.elementGenerator = opts.elementGenerator;
 
-			var config = opts.config;
-			if( config ){
-				if( config.directory ){
-					this.dispatchService = config.directory.dispatchService;
-					this.showService = config.directory.showService;
-				};
+		var config = opts.config;
+		if( config ){
+			if( config.directory ){
+				this.dispatchService = config.directory.dispatchService;
+				this.showService = config.directory.showService;
+			};
+		};
+		/**
+		 * @protected
+		 * @type {Array} sources : Array<ol.source.Vector>
+		 */
+		this.sources = [];
+		/**
+		 * @protected
+		 * @type {Array} overlayInfos : Array<./N2LayerInfo>
+		 */
+		this.overlayInfos = [];
+
+
+		this.mapLayers = [];
+		this.overlayLayers = [];
+
+		/**
+		 * @type { hashset<(import ol/interaction).like> }
+		 * This hashset store all the interaction used in different toolbar-controls
+		 */
+		this.interactionSet = {
+				selectInteraction : null,
+				drawInteraction : null
+		};
+		this.currentInteract = null;
+		this._processOverlay(opts.overlays);
+
+		// Register to events
+		if( this.dispatchService ){
+			var f = function(m){
+				_this._handleDispatch(m);
 			};
 
+		};
 
-			/**
-			 * @protected
-			 * @type {Array} sources : Array<ol.source.Vector>
-			 */
-			this.sources = [];
-			/**
-			 * @protected
-			 * @type {Array} overlayInfos : Array<./N2LayerInfo>
-			 */
-			this.overlayInfos = [];
+		$n2.log(this._classname,this);
+
+		this.bgSources = opts.backgrounds || [];
 
 
-			this.mapLayers = [];
-			this.overlayLayers = [];
-			
-			/**
-			 * @type { hashset<(import ol/interaction).like> }
-			 * This hashset store all the interaction used in different toolbar-controls
-			 */
-			this.interactionSet = {
-					selectInteraction : null,
-					drawInteraction : null
-			};
-			this.currentInteract = null;
-			this._processOverlay(opts.overlays ,this.sources, this.overlayInfos);
+		this.styleRules = $n2.styleRule.loadRulesFromObject(opts.styles);
 
-			// Register to events
-			if( this.dispatchService ){
-				var f = function(m){
-					_this._handleDispatch(m);
-				};
-
-			};
-
-			$n2.log(this._classname,this);
-
-			this.bgSources = opts.backgrounds || [];
-
-
-			this.styleRules = $n2.styleRule.loadRulesFromObject(opts.styles);
-
-			this._drawMap();
-
-			//				} catch(err) {
-			//					var error = new Error('Unable to create '+this._classname+': '+err);
-			//					console.trace();
-			//					opts.onError(error);
-			//				};
-
-			opts.onSuccess();
+		this._drawMap();
+		opts.onSuccess();
 	}
 
 	/**
 	* Preprocess the opts.overlay. Producing overlay-sources array
 	* and overlay-infos array.
 	* @param  {Array} overlays [description]
-	* @param  {Array} sources [description]
-	* @param  {Array} overlayInfos [description]
 	*/
-	_processOverlay (overlays, sources, overlayInfos) {
+	_processOverlay (overlays) {
 		
 		
 		var _this = this;
@@ -198,7 +179,7 @@ class N2MapCanvas  {
 					,_layerInfo: layerInfo
 				};
 
-				overlayInfos.push(layerOptions);
+				this.overlayInfos.push(layerOptions);
 				//---------------------
 				//---------------------
 				if ('couchdb' === overlay.type) {
@@ -468,7 +449,6 @@ class N2MapCanvas  {
 				Sources.forEach(function(source){
 
 					var clusterSource = new n2es6.ol5support.N2Cluster({
-						distance : 20,
 						source: source
 					});
 					var n2IntentSource = new N2SourceWithN2Intent({
@@ -478,7 +458,7 @@ class N2MapCanvas  {
 					});
 					var vectorLayer = new VectorLayer({
 						title: "CouchDb",
-						renderMode : 'vector',
+						renderMode : 'image',
 						source: n2IntentSource,
 						style: testingStyle,
 						renderOrder: function(feature1, feature2){
@@ -517,7 +497,7 @@ class N2MapCanvas  {
 				var n2mapStyles = new N2MapStyles();
 				let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols, 
 																		feature.n2_geometry);
-				//let innerStyle2 = createDefaultStyle();
+
 				return innerStyle;
 			}
 	}

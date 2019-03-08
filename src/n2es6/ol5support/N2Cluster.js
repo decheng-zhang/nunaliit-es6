@@ -28,7 +28,8 @@ class N2Cluster extends Cluster {
 			minimumLinePixelSize : 20,
 			clusterPointsOnly : false,
 			threshold: null,
-			clusterPrefix: null
+			clusterPrefix: null,
+			disableDynamicClustering : false
 		}, options);
 		super(options);
 
@@ -53,9 +54,9 @@ class N2Cluster extends Cluster {
 		/**
 		* @type {boolean}
 		*/
-		if(options.clusterPointsOnly) {
-			this.clusterPointsOnly = options.clusterPointsOnly ;
-		}
+
+		this.clusterPointsOnly = options.clusterPointsOnly ;
+
 		/**
 		* @type {number}
 		*/
@@ -114,16 +115,21 @@ class N2Cluster extends Cluster {
 		* @type {!Object<string, boolean>}
 		*/
 		const clustered = {};
-		const ineligibleList = {};
+		const taboo = {};
 		for (let i = 0, ii = features.length; i < ii; i++) {
 			let feature = features[i];
 			const uid = getUid(feature);
-			if (!this._isEligibleFeature(feature)) {
-				ineligibleList[uid] = true;
-				this.features.push(feature);
+			let hasInTaboo = (getUid(feature) in taboo);
+			if (hasInTaboo){
 				continue;
 			}
+
 			if (!(getUid(feature) in clustered)) {
+				if (!this._isEligibleFeature(feature)){
+					taboo[uid] = true;
+					this.features.push(feature);
+					continue;
+				}
 				// Pass in infinity extent to by-pass OpenLayers bug
 				var geomExtent = feature.getGeometry().getExtent();
 				const geomCentroid = getCenter(geomExtent);
@@ -132,15 +138,17 @@ class N2Cluster extends Cluster {
 
 				let neighbors = this.source.getFeaturesInExtent(extent);
 				neighbors = neighbors.filter(function (neighbor) {
-					const uid = getUid(neighbor);
-					if (!(uid in clustered) &&
-					!( (uid in ineligibleList) ||
-					!that_._isEligibleFeature(feature) ) ) {
-						clustered[uid] = true;
-						return true;
-					} else {
-						return false;
+					let uid = getUid(neighbor);
+					if (! (uid in clustered)){
+						if (! (uid in taboo) ){
+							if (that_._isEligibleFeature(neighbor)){
+								clustered[uid] = true;
+								return true;
+							}
+						}
 					}
+					return false;
+					
 				});
 				this.features.push(this.createCluster(neighbors));
 			}
@@ -191,7 +199,7 @@ class N2Cluster extends Cluster {
 		}
 
 		// By default, cluster everything
-		let eligible = true;
+		var eligible = true;
 
 		if (!this.disableDynamicClustering) {
 			// Dynamic Clustering
@@ -248,9 +256,9 @@ class N2Cluster extends Cluster {
 	* @protected
 	*/
 	_computeFullBoundingBox(f) {
-		return this._ComputeFeatureOriginalBboxForMapProjection(f, this.projection);
+		return this._computeFeatureOriginalBboxForMapProjection(f, this.projection);
 	}
-	_ComputeFeatureOriginalBboxForMapProjection(f, mapProj) {
+	_computeFeatureOriginalBboxForMapProjection(f, mapProj) {
 		// Each feature has a projection stored at f.n2GeomProj
 		// that represents the original projection for a feature
 		//

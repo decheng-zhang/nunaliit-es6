@@ -99,32 +99,33 @@ class N2SourceWithN2Intent extends VectorSource {
 	}
 
 	onHover(evt){
-		
+
 		let selected  = evt.selected;
-		
-		
+
+
 		//In case, there is single feature inside a N2Cluster features collection
-	    if (selected){
-	    	let innerFeatures = selected.cluster;
-	    	if( innerFeatures && innerFeatures.length == 1){
-	    		selected = innerFeatures[0];
-	    	}
+		if (selected){
+			let innerFeatures = selected.cluster;
+			if( innerFeatures && innerFeatures.length == 1){
+				selected = innerFeatures[0];
+			}
 		}
-	    if (this.hoverInfo.feature === selected) {
-	    	//no really going to happen.
-	    	return;
-	    }
-	    
-	    this._endHover();
-	    this.hoverInfo.feature = selected;
-	    
+		if (this.hoverInfo.feature === selected) {
+			//no really going to happen.
+			return;
+		}
+
+		this._endHover();
+		this.hoverInfo.feature = selected;
+
 		this._hoverFeature(selected);
 		//TODO There should be a straightforward way to create popup
 		//this._hoverFeaturePopup(selected, layer);
-		
+
 		//console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
 		//	"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));	
-	    this.refresh();
+		this.updateN2Label();
+		this.changed();
 		return true;
 	}
 	//clear up for hover
@@ -403,7 +404,8 @@ class N2SourceWithN2Intent extends VectorSource {
 			this._dispatch({type: 'userUnselect',
 				docId: this.clickedInfo.selectedId
 				});
-			this.refresh();
+			this.updateN2Label();
+			this.changed();
 			return false;
 		}
 		
@@ -420,7 +422,8 @@ class N2SourceWithN2Intent extends VectorSource {
 							docId: selected.fid
 							});
 			//selected.changed();
-			this.refresh();
+			this.updateN2Label();
+			this.changed();
 			return false;
 		} else if ( selected 
 				&& selected.fid ) {
@@ -437,7 +440,8 @@ class N2SourceWithN2Intent extends VectorSource {
 				this.interaction_.onStartClick(selected);
 			};
 		}
-		this.refresh();
+		this.updateN2Label();
+		this.changed();
 		return true;
 	}
 	//clear up for click
@@ -621,18 +625,18 @@ class N2SourceWithN2Intent extends VectorSource {
 		this.source.loadFeatures(extent, resolution, projection);
 		if (resolution !== this.resolution) {
 
-			this.clear();
+			//this.clear();
 			this.resolution = resolution;
 			this.projection = projection;
-			this.updateN2Label();
-			this.addFeatures(this.features_);
+			this.refresh();
+			//this.addFeatures(this.features_);
 		}
 	}
 
 	refresh() {
-		this.clear();
+		this.clear(true);
 		this.updateN2Label();
-		this.addFeatures(this.features_);
+		this.addFeaturesInternal(this.features_);
 		super.refresh();
 		this.changed();
 	}
@@ -820,7 +824,8 @@ class N2SourceWithN2Intent extends VectorSource {
 			
 		}  else if( 'unselected' === type ) {
 			this._endClicked();
-			this.refresh();
+			this.updateN2Label();
+			this.changed();
 		}
 	}
 	

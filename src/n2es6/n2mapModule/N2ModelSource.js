@@ -298,6 +298,7 @@ class N2ModelSource extends Vector {
 
 		this.clear();
 		this.addFeatures(features);
+		
 	}	
 }
 
