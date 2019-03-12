@@ -61,7 +61,10 @@ class N2SelectEvent extends Event {
  */
 class N2Select extends Interaction {
 	constructor(opt_options){
-		const options = opt_options ? opt_options: {};
+		const options = $n2.extend({
+			hoverCallback: undefined
+			,clickCallback : undefined
+		}, opt_options)
 
 		super({
 			handleEvent: handleEvent_
@@ -73,6 +76,9 @@ class N2Select extends Interaction {
 	     * @type {boolean}
 	     */
 	    this.multi_ = options.multi ? options.multi : false;
+	    
+	    this.hoverCallback = options.hoverCallback;
+	    this.clickCallback = options.clickCallback;
 
 	    this.clickCondition_ = click;
 		//clicked can return multiple ones.
@@ -111,7 +117,9 @@ class N2Select extends Interaction {
 
 		}
 	}
-	
+	setHoverCallback(callbackFn){
+		this.hoverCallback = callbackFn;
+	}
 	
 }
   /**
@@ -142,16 +150,19 @@ function handleEvent_(mapBrowserEvent) {
 			hitTolerance: this.hitTolerance_
 				});
 
-		if ( this.hoveredFeature_ === selected ) {
-			/* no hovered changed */
-		} else {
+		
 			deselected = this.hoveredFeature_;
 			this.hoveredFeature_ = selected;
-			this.dispatchEvent(
-					new N2SelectEvent(N2SelectEventType.HOVER,
-							selected || null, deselected, mapBrowserEvent)
-			);
-		}
+			
+			if (this.hoverCallback
+					&& typeof this.hoverCallback === 'function'){
+				this.hoverCallback (selected || null);
+			}
+			//this.dispatchEvent(
+			//		new N2SelectEvent(N2SelectEventType.HOVER,
+			//				selected || null, deselected, mapBrowserEvent)
+			//);
+		
 
 	} else if (this.clickCondition_(mapBrowserEvent)) {
 
@@ -197,7 +208,7 @@ function handleEvent_(mapBrowserEvent) {
 	}
 	//keep mapBrowserEvent propagating
 	
-	return pointerMove(mapBrowserEvent);
+    return true;
 }
 
 	export default N2Select;

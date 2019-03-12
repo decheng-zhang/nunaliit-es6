@@ -46,12 +46,13 @@ class N2ModelSource extends Vector {
 		this.loading = false;
 
 		var _this = this;
-
+		this.cnt = 0;
 		this.modelObserver = new $n2.model.DocumentModelObserver({
 			dispatchService : this.dispatchService,
 			sourceModelId: this.sourceModelId,
 			updatedCallback : function(state){
 				_this._modelSourceUpdated(state);
+				console.log("Updated Times: " + _this.cnt++);
 			}
 		});
 		if( this.dispatchService ){
@@ -113,11 +114,8 @@ class N2ModelSource extends Vector {
 				delete _this.infoByDocId[docId];
 			});
 		};
-		if (this.onUpdateCallback
-				&& typeof this.onUpdateCallback === 'function') {
-			this.onUpdateCallback(state);
-		}
-		this._reloadAllFeatures();
+
+		//this._reloadAllFeatures();
 	}
 
 	_reportLoading(flag){
@@ -164,17 +162,12 @@ class N2ModelSource extends Vector {
 			};
 		}
 	}
-	/**
-	 * This function is called when the map resolution is changed
-	 */
-	changedResolution(res,proj){
-		//$n2.log('resolution',res,proj);
-
-
-
-		this.epsg4326Resolution = this._getResolutionInProjection(res,proj);
-
-		for(var docId in this.infoByDocId){
+	onChangeCenter(res, proj, extent) {
+		let featuresNeedUpdateFids = [];
+		this.forEachFeatureInExtent(extent, function(f){
+			featuresNeedUpdateFids.push(f.fid);
+		});
+		for (var docId of featuresNeedUpdateFids){
 			var docInfo = this.infoByDocId[docId];
 			var doc = docInfo.doc;
 			if( doc && doc.nunaliit_geom
@@ -234,6 +227,82 @@ class N2ModelSource extends Vector {
 		});
 
 		this._reloadAllFeatures();
+	
+	}
+	/**
+	 * This function is called when the map resolution is changed
+	 */
+	onChangedResolution(res,proj, extent){
+		//$n2.log('resolution',res,proj);
+		//let featuresNeedUpdateFids = [];
+		//this.forEachFeatureInExtent(extent, function(f){
+		//	featuresNeedUpdateFids.push(f.fid);
+		//});
+
+
+		this.epsg4326Resolution = this._getResolutionInProjection(res,proj);
+
+		for(let docId in this.infoByDocId){
+			var docInfo = this.infoByDocId[docId];
+			var doc = docInfo.doc;
+			if( doc && doc.nunaliit_geom
+					&& doc.nunaliit_geom.simplified
+					&& doc.nunaliit_geom.simplified.resolutions ){
+				var bestAttName = undefined;
+				var bestResolution = undefined;
+				for(var attName in doc.nunaliit_geom.simplified.resolutions){
+					var attRes = 1 * doc.nunaliit_geom.simplified.resolutions[attName];
+					if( attRes < this.epsg4326Resolution ){
+						if( typeof bestResolution === 'undefined' ){
+							bestResolution = attRes;
+							bestAttName = attName;
+						} else if( attRes > bestResolution ){
+							bestResolution = attRes;
+							bestAttName = attName;
+						};
+					};
+				};
+
+				// At this point, if bestResolution is set, then this is the geometry we should
+				// be displaying
+				if( undefined !== bestResolution ){
+					docInfo.simplifiedName = bestAttName;
+					docInfo.simplifiedResolution = bestResolution;
+				};
+			};
+		};
+
+		var geometriesRequested = [];
+		for(var docId in this.infoByDocId){
+			var docInfo = this.infoByDocId[docId];
+			var doc = docInfo.doc;
+			if( docInfo.simplifiedName ) {
+				// There is a simplification needed, do I have it already?
+				var wkt = undefined;
+				if( docInfo.simplifications ){
+					wkt = docInfo.simplifications[docInfo.simplifiedName];
+				};
+
+				// If I do not have it, request it
+				if( !wkt ){
+					var geomRequest = {
+							id: docId
+							,attName: docInfo.simplifiedName
+							,doc: doc
+					};
+					geometriesRequested.push(geomRequest);
+				};
+			};
+		}
+
+		this.dispatchService.send(DH,{
+			type: 'simplifiedGeometryRequest'
+				,geometriesRequested: geometriesRequested
+				,requester: this.sourceId
+		});
+
+		this._reloadAllFeatures();
+		
 	}
 
 	_getResolutionInProjection(targetResolution, proj){
@@ -256,7 +325,7 @@ class N2ModelSource extends Vector {
 
 		var wktFormat = new WKT();
 
-		var features = [];
+		let features = [];
 		for(var docId in this.infoByDocId){
 			var docInfo = this.infoByDocId[docId];
 			var doc = docInfo.doc;
@@ -296,7 +365,7 @@ class N2ModelSource extends Vector {
 			};
 		};
 
-		this.clear();
+		this.clear(true);
 		this.addFeatures(features);
 		
 	}	

@@ -117,7 +117,7 @@ class N2CouchDbSource extends Vector {
 			});
 		};
 
-		this._reloadAllFeatures();
+		//this._reloadAllFeatures();
 	}
 
 	_handleDispatch(m, addr, dispatcher){

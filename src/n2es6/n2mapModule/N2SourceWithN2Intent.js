@@ -31,6 +31,8 @@ class N2SourceWithN2Intent extends VectorSource {
 		 * @type {number|undefined}
 		 */
 		this.resolution = undefined;
+		this.extent = undefined;
+		this.projection = undefined;
 		/**
 		 * [source description]
 		 * @type {[type]}
@@ -42,7 +44,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		 */
 		this.features_ = [];
 
-		
+		this.fidToFeatureMap = {};
 		
 		this.toggleClick = true;
 		//-------------------------
@@ -76,7 +78,8 @@ class N2SourceWithN2Intent extends VectorSource {
 		listen(this.source, EventType.CHANGE, this.refresh, this);
 		
 		
-		this.interaction_.on( "hover",  this.onHover.bind(this));
+		//this.interaction_.on( "hover",  this.onHover.bind(this));
+		this.interaction_.setHoverCallback(this.onHover.bind(this));
 		this.interaction_.on( "clicked",  this.onClicked.bind(this));
 		//this.interaction_.on( "focus",  this.onFocus.bind(this));
 		//this.interaction_.on( "find",  this.onFind.bind(this));
@@ -98,9 +101,9 @@ class N2SourceWithN2Intent extends VectorSource {
 		};
 	}
 
-	onHover(evt){
+	onHover(target){
 
-		let selected  = evt.selected;
+		let selected  = target;
 
 
 		//In case, there is single feature inside a N2Cluster features collection
@@ -124,9 +127,9 @@ class N2SourceWithN2Intent extends VectorSource {
 
 		//console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
 		//	"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));	
-		this.updateN2Label();
-		this.changed();
-		return true;
+		//this.updateN2Label();
+		//this.changed();
+		return false;
 	}
 	//clear up for hover
 	_endHover() {
@@ -404,8 +407,8 @@ class N2SourceWithN2Intent extends VectorSource {
 			this._dispatch({type: 'userUnselect',
 				docId: this.clickedInfo.selectedId
 				});
-			this.updateN2Label();
-			this.changed();
+			//this.updateN2Label();
+			//this.changed();
 			return false;
 		}
 		
@@ -422,8 +425,8 @@ class N2SourceWithN2Intent extends VectorSource {
 							docId: selected.fid
 							});
 			//selected.changed();
-			this.updateN2Label();
-			this.changed();
+			//this.updateN2Label();
+			//this.changed();
 			return false;
 		} else if ( selected 
 				&& selected.fid ) {
@@ -440,8 +443,8 @@ class N2SourceWithN2Intent extends VectorSource {
 				this.interaction_.onStartClick(selected);
 			};
 		}
-		this.updateN2Label();
-		this.changed();
+		//this.updateN2Label();
+		//this.changed();
 		return true;
 	}
 	//clear up for click
@@ -624,37 +627,40 @@ class N2SourceWithN2Intent extends VectorSource {
 	loadFeatures(extent, resolution, projection) {
 		this.source.loadFeatures(extent, resolution, projection);
 		if (resolution !== this.resolution) {
-
-			//this.clear();
 			this.resolution = resolution;
 			this.projection = projection;
-			this.refresh();
-			//this.addFeatures(this.features_);
+			this.extent = extent;
+			super.refresh();
 		}
 	}
 
 	refresh() {
-		this.clear(true);
+		
+		this.clear();
 		this.updateN2Label();
-		this.addFeaturesInternal(this.features_);
+		this.addFeatures(this.features_);
 		super.refresh();
 		
+		
 	}
-
+	
 	/**
 	 * [addN2Label description]
 	 */
-	updateN2Label() {
+	updateN2Label(opt_extent) {
 		if (this.resolution === undefined) {
 		  return;
 		}
 		this.features_.length = 0;
-		let features = this.source.getFeatures();
-		if( features ) {
-				for(let i=0,e=features.length;i<e;++i){
-					
-					//Deal with n2_ tags to support style system
-					var f = features[i];
+		var features;
+		if (opt_extent){
+			features = this.source.getFeaturesInExtent(opt_extent);
+		} else {
+			features = this.source.getFeatures();
+		}
+		if( features && features.length > 0 ) {
+			
+				for(let f of features){
 					if( this.clickedInfo.fids[f.fid] ){
 						var featureInfo = this.clickedInfo.fids[f.fid];
 
@@ -723,35 +729,6 @@ class N2SourceWithN2Intent extends VectorSource {
 						};
 					};
 					
-					//Deal with _n2Type tag
-					var geomType = f.getGeometry()._n2Type;
-					if ( !geomType ) {
-						if ( f
-								.getGeometry()
-								.getType()
-								.indexOf('Line') >= 0){
-							geomType = f.getGeometry()._n2Type = 'line';
-							
-						} else if ( f
-									.getGeometry()
-									.getType()
-									.indexOf('Polygon') >= 0){
-							geomType = f.getGeometry()._n2Type = 'polygon';
-						} else {
-							geomType = f.getGeometry()._n2Type = 'point';
-						}
-					}
-					f.n2_geometry = geomType;
-					
-					//Deal with n2_doc tag
-					var data = f.data;
-					if (f 
-						&& f.cluster
-						&& f.cluster.length === 1) {
-						data = f.cluster[0].data;
-					};
-					f.n2_doc = data;
-					
 					this.features_.push(f);
 				};
 			};
@@ -768,12 +745,10 @@ class N2SourceWithN2Intent extends VectorSource {
 			} else if( m.docIds ){
 				this._startFocus(m.docIds);
 			};
-			this.updateN2Label();
-			this.changed();
+
 		} else if( 'focusOff' === type ) {
 			this._endFocus();
-			this.updateN2Label();
-			this.changed();
+
 		} else if( 'focusOnSupplement' === type ) {
 			var fid = m.docId;
 			
@@ -794,8 +769,7 @@ class N2SourceWithN2Intent extends VectorSource {
 					,intent: m.intent
 				});
 			};
-			this.updateN2Label();
-			this.changed();
+
 		} else if( 'selected' === type ) {
 			if( m.docId ) {
 				let fidmap = {};
@@ -811,8 +785,7 @@ class N2SourceWithN2Intent extends VectorSource {
 				var features = this._getMapFeaturesIncludeingFidMapOl5(fidmap);
 				this._selectedFeatures(features, m.docIds);
 			};
-			this.updateN2Label();
-			this.changed();
+
 		} else if( 'selectedSupplement' === type ) {
 			let fid = m.docId;
 			if( fid ) {
@@ -825,14 +798,14 @@ class N2SourceWithN2Intent extends VectorSource {
 					,intent: m.intent
 				});
 			};
-			this.updateN2Label();
-			this.changed();
+
 			
 		}  else if( 'unselected' === type ) {
 			this._endClicked();
-			this.updateN2Label();
-			this.changed();
+
 		}
+		this.updateN2Label();
+		this.changed();
 
 	}
 	

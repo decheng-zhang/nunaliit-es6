@@ -25,7 +25,8 @@ import {transform} from 'ol/proj.js';
 import Tile from 'ol/layer/Tile.js';
 
 import {click as clickCondition} from 'ol/events/condition.js';
-import {default as SelectInteraction} from 'ol/interaction/Select.js';
+import mouseWheelZoom from 'ol/interaction/MouseWheelZoom.js';
+import {defaults as defaultsInteractionSet} from 'ol/interaction.js';
 
 import {default as DrawInteraction} from 'ol/interaction/Draw.js';
 import Stamen from 'ol/source/Stamen.js';
@@ -78,6 +79,23 @@ const stringStyles = {
 		"label": true
 };
 
+var featureStyleFunctions = {
+		getDocuments: function(){
+			// this is the feature
+
+			var documents = [];
+
+			if( $n2.isArray(this.cluster) ) {
+				this.cluster.forEach(function(f){
+					documents.push(f.data);
+				});
+			} else {
+				documents.push(this.data);
+			};
+
+			return documents;
+		}
+	};
 
 /**
  * @classdesc
@@ -127,10 +145,16 @@ class N2MapCanvas  {
 		this.mapLayers = [];
 		this.overlayLayers = [];
 
+		this.center = undefined;
+		this.resolution = undefined;
+		
+		
 		/**
 		 * @type { hashset<(import ol/interaction).like> }
 		 * This hashset store all the interaction used in different toolbar-controls
 		 */
+		
+		this.n2MapStyles = new N2MapStyles();
 		this.interactionSet = {
 				selectInteraction : null,
 				drawInteraction : null
@@ -283,19 +307,61 @@ class N2MapCanvas  {
 				var olView = event.target;
 				if( olView ){
 					var res = olView.getResolution();
+					var oldres = _this.resolution;
 					var proj = olView.getProjection();
+					if (typeof _this.resolution === 'undefined'
+						|| Math.abs((res - oldres)/oldres) > 0.01){
+						var extent = olView.calculateExtent();
 					//$n2.log('resolution',res,proj);
-					_this.sources.forEach(function(source){
-						source.changedResolution(res,proj);
-					});
+						_this.resolution = res;
+						_this.sources.forEach(function(source){
+							source.onChangedResolution(res,proj,extent);
+						});
+					}
 
 				};
-			});
-			var customMap = new Map({
-				target : this.canvasId,
-				view: olView
+				return true;
 			});
 			
+						
+			
+			var customMap = new Map({
+				interactions: defaultsInteractionSet({mouseWheelZoom : false}).extend([
+					new mouseWheelZoom({
+					    duration: 200,
+					    constrainResolution: true
+					})
+				]),
+				target : this.canvasId,
+				view: olView
+				
+			});
+			
+			
+			customMap.on('moveend',function(event){
+				// var map = event.target;
+				// var olView = map.getView();
+				// var cen = olView.getCenter();
+				// var oldcen = _this.center;
+				// var proj = olView.getProjection();
+				
+				
+				// if ( typeof oldcen === 'undefined'
+				// 	||	Math.abs((cen[0]-oldcen[0])/oldcen[0]) > 0.01
+				// 	||	Math.abs((cen[1]-oldcen[1])/oldcen[1]) > 0.01){
+				// _this.center = cen;
+				// var extent = olView.calculateExtent();
+				// if( olView ){
+				// 	var res = olView.getResolution();
+				// 	var proj = olView.getProjection();
+				// 	//$n2.log('resolution',res,proj);
+				// 	_this.sources.forEach(function(source){
+				// 		source.onChangeCenter(res,proj, extent);
+				// 	});
+
+				// };
+				// }
+			});
 			this.interactionSet.selectInteraction = new N2Select({map: customMap});
 
 //------------------------------
@@ -458,9 +524,9 @@ class N2MapCanvas  {
 					});
 					var vectorLayer = new VectorLayer({
 						title: "CouchDb",
-						renderMode : 'image',
+						renderMode : 'vector',
 						source: n2IntentSource,
-						style: testingStyle,
+						style: StyleFn,
 						renderOrder: function(feature1, feature2){
 							return $n2.olUtils.ol5FeatureSorting(feature1, feature2);
 						}
@@ -473,7 +539,40 @@ class N2MapCanvas  {
 
 			}
 			return (fg);
-			function testingStyle(feature, resolution){
+			function StyleFn(feature, resolution){
+				
+				var f = feature;
+				
+				for(var fnName in featureStyleFunctions){
+					f[fnName] = featureStyleFunctions[fnName];
+				};
+				var geomType = f.getGeometry()._n2Type;
+				if ( !geomType ) {
+					if ( f
+							.getGeometry()
+							.getType()
+							.indexOf('Line') >= 0){
+						geomType = f.getGeometry()._n2Type = 'line';
+						
+					} else if ( f
+								.getGeometry()
+								.getType()
+								.indexOf('Polygon') >= 0){
+						geomType = f.getGeometry()._n2Type = 'polygon';
+					} else {
+						geomType = f.getGeometry()._n2Type = 'point';
+					}
+				}
+				f.n2_geometry = geomType;
+				
+				//Deal with n2_doc tag
+				var data = f.data;
+				if (f 
+					&& f.cluster
+					&& f.cluster.length === 1) {
+					data = f.cluster[0].data;
+				};
+				f.n2_doc = data;
 				
 				//(import $n2.styleRule.js).Style
 				let style = _this.styleRules.getStyle(feature);
@@ -490,11 +589,10 @@ class N2MapCanvas  {
 							value = value.toString();
 						};
 					};
-					
 					symbols[name] = value;
 				},feature);
 				
-				var n2mapStyles = new N2MapStyles();
+				let n2mapStyles = _this.n2MapStyles;
 				let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols, 
 																		feature.n2_geometry);
 
