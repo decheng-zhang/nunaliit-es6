@@ -730,15 +730,17 @@ class N2MapCanvas  {
 			}
 			
 		    let extent =  this._computeFullBoundingBox(m.doc, 'EPSG:4326','EPSG:3857');	
-			
+
+		    			
 			_this.n2View.animate({
 				center: targetCenter,
 				duration: 1000
 			});
-		       _this.n2View.animate({
+
+		    _this.n2View.animate({
 			   zoom: _this.n2View.getZoom()-1,
 			    duration: 500
-			});
+		       });
 		    if (extent[0] === extent[2]
 			|| extent[1] === extent [3]){
 			_this.n2View.animate({
@@ -746,7 +748,7 @@ class N2MapCanvas  {
 			    duration: 500
 			});
 		    }else {
-			_this.n2View.fit(extent,{duration: 1000});
+			_this.n2View.fit(extent,{duration: 1500});
 		    }
 			
 		}
