@@ -21,7 +21,8 @@ import {default as LayerGroup} from 'ol/layer/Group.js';
 import {default as ImageLayer} from 'ol/layer/Image.js';
 import {default as View} from 'ol/View.js';
 
-import {transform} from 'ol/proj.js';
+import {transform, getTransform, transformExtent} from 'ol/proj.js';
+import {default as Projection} from 'ol/proj/Projection.js';
 import Tile from 'ol/layer/Tile.js';
 
 import {click as clickCondition} from 'ol/events/condition.js';
@@ -149,12 +150,16 @@ class N2MapCanvas  {
 		this.resolution = undefined;
 		
 		
+
+		
+		this.n2View = undefined;
+		
+		this.n2MapStyles = new N2MapStyles();
+		
 		/**
 		 * @type { hashset<(import ol/interaction).like> }
 		 * This hashset store all the interaction used in different toolbar-controls
 		 */
-		
-		this.n2MapStyles = new N2MapStyles();
 		this.interactionSet = {
 				selectInteraction : null,
 				drawInteraction : null
@@ -167,7 +172,7 @@ class N2MapCanvas  {
 			var f = function(m){
 				_this._handleDispatch(m);
 			};
-
+			this.dispatchService.register(DH,'N2ViewAnimation',f);
 		};
 
 		$n2.log(this._classname,this);
@@ -303,6 +308,7 @@ class N2MapCanvas  {
 				projection: 'EPSG:3857',
 				zoom: 6
 			});
+			this.n2View = olView;
 			olView.on('change:resolution',function(event){
 				var olView = event.target;
 				if( olView ){
@@ -338,30 +344,7 @@ class N2MapCanvas  {
 			});
 			
 			
-			customMap.on('moveend',function(event){
-				// var map = event.target;
-				// var olView = map.getView();
-				// var cen = olView.getCenter();
-				// var oldcen = _this.center;
-				// var proj = olView.getProjection();
-				
-				
-				// if ( typeof oldcen === 'undefined'
-				// 	||	Math.abs((cen[0]-oldcen[0])/oldcen[0]) > 0.01
-				// 	||	Math.abs((cen[1]-oldcen[1])/oldcen[1]) > 0.01){
-				// _this.center = cen;
-				// var extent = olView.calculateExtent();
-				// if( olView ){
-				// 	var res = olView.getResolution();
-				// 	var proj = olView.getProjection();
-				// 	//$n2.log('resolution',res,proj);
-				// 	_this.sources.forEach(function(source){
-				// 		source.onChangeCenter(res,proj, extent);
-				// 	});
 
-				// };
-				// }
-			});
 			this.interactionSet.selectInteraction = new N2Select({map: customMap});
 
 //------------------------------
@@ -728,11 +711,108 @@ class N2MapCanvas  {
 
 							$n2.reportError('Unrecognized type (' + layerDefinition.type + ')');
 						}
+	}
+
+	_handleDispatch( m, addr, dispatcher){
+		
+		var _this = this;
+		var type = m.type;
+		if ('N2ViewAnimation' === type){
+			let x = m.x;
+		        let y = m.y;
+			let sourceProjCode = m.projCode;
+		    let targetProjCode = 'EPSG:3857';
+			var targetCenter = [x, y];
+			if ( targetProjCode !== sourceProjCode){
+			    var transformFn = getTransform( sourceProjCode, targetProjCode);
+				// Convert [0,0] and [0,1] to proj
+			    targetCenter = transformFn([x, y]);
+			}
+			
+		    let extent =  this._computeFullBoundingBox(m.doc, 'EPSG:4326','EPSG:3857');	
+			
+			_this.n2View.animate({
+				center: targetCenter,
+				duration: 1000
+			});
+		       _this.n2View.animate({
+			   zoom: _this.n2View.getZoom()-1,
+			    duration: 500
+			});
+		    if (extent[0] === extent[2]
+			|| extent[1] === extent [3]){
+			_this.n2View.animate({
+			    zoom: 9,
+			    duration: 500
+			});
+		    }else {
+			_this.n2View.fit(extent,{duration: 1000});
+		    }
+			
+		}
+	}
+
+    	/**
+	* Compute the bounding box of the original geometry. This may differ from
+	* the bounding box of the geometry on the feature since this can be a
+	* simplification.
+	* @param {Feature} f The bounding box value from nunaliit project, which considers both the simplified geometries and original one.
+	* @return {Array<number>} Extent
+	* @protected
+	*/
+    _computeFullBoundingBox(f, srcProj, dstProj) {
+	if (f && f.nunaliit_geom
+	    && f.nunaliit_geom.bbox){
+	    let bbox = f.nunaliit_geom.bbox;
+	    let geomBounds = undefined;
+	    if ( Array.isArray(bbox)) {
+		geomBounds = transformExtent(bbox,
+					     new Projection({code: srcProj}),
+					     new Projection({code: dstProj})
+					    );
+		return geomBounds;
+		
+	    }
+	}
+	
+	 
+    }
+_computeFeatureOriginalBboxForMapProjection(f, mapProj) {
+		// Each feature has a projection stored at f.n2GeomProj
+		// that represents the original projection for a feature
+		//
+		// Each feature has a property named 'n2ConvertedBbox' that contains
+		// the full geometry bbox converted for the map projection, if
+		// already computed.
+
+		if (f && f.n2ConvertedBbox) {
+			return f.n2ConvertedBbox;
+		}
+
+		let geomBounds = undefined;
+		if (f.data
+			&& f.data.nunaliit_geom
+			&& f.data.nunaliit_geom.bbox
+			&& f.n2GeomProj
+			&& mapProj) {
+
+				const bbox = f.data.nunaliit_geom.bbox;
+				if (Array.isArray(bbox)
+				&& bbox.length >= 4) {
+					geomBounds = bbox;
+
+					if (mapProj.getCode() !== f.n2GeomProj.getCode) {
+						geomBounds = transformExtent(bbox, f.n2GeomProj, mapProj);
 					}
 
-					_handleDispatch( m, addr, dispatcher){
-					}
-				};
+					f.n2ConvertedBbox = geomBounds;
+				}
+			}
+
+			return geomBounds;
+		}
+
+};
 
 				//--------------------------------------------------------------------------
 				//--------------------------------------------------------------------------

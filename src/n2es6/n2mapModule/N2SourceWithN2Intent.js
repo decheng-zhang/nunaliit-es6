@@ -98,6 +98,8 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.dispatchService.register(DH,'selected',f);
 			this.dispatchService.register(DH,'selectedSupplement',f);
 			this.dispatchService.register(DH,'unselected',f);
+			this.dispatchService.register(DH,'find',f);
+			this.dispatchService.register(DH,'findIsAvailable',f);
 		};
 	}
 
@@ -529,13 +531,6 @@ class N2SourceWithN2Intent extends VectorSource {
 		this.focusInfo.origin = null;
 	}
 	
-	onFocus(evt){
-		
-		return true;
-	}
-	onFind(evt){
-		return true;
-	}
 
 
 	_getMapFeaturesIncludeingFidMapOl5(fidMap) {
@@ -624,6 +619,38 @@ class N2SourceWithN2Intent extends VectorSource {
 		};
 	}
 
+	
+	_startFindFeature(fid, features){
+		this._endFindFeature();
+
+		this.findFeatureInfo.fid = fid;
+		this.findFeatureInfo.features = features;
+
+		if( features ){
+			for(var i=0,e=features.length; i<e; ++i){
+				var f = features[i];
+				if( f ){
+					f.n2Intent = 'find';
+					//if( f.layer ) f.layer.drawFeature(f);
+				};
+			};
+		};
+	}
+	
+	_endFindFeature(){
+		
+		for(var i=0,e=this.findFeatureInfo.features.length; i<e; ++i){
+			var f = this.findFeatureInfo.features[i];
+			if( f ) {
+				f.n2Intent = null;
+				if( f.layer ) f.layer.drawFeature(f);
+			};
+		};
+		
+		this.findFeatureInfo.fid = null;
+		this.findFeatureInfo.features = [];
+	}
+	
 	loadFeatures(extent, resolution, projection) {
 		this.source.loadFeatures(extent, resolution, projection);
 		if (resolution !== this.resolution) {
@@ -803,13 +830,60 @@ class N2SourceWithN2Intent extends VectorSource {
 		}  else if( 'unselected' === type ) {
 			this._endClicked();
 
+		} else if( 'find' === type ){
+
+			var doc = m.doc;
+			if( doc && doc.nunaliit_geom ){
+				var x = (doc.nunaliit_geom.bbox[0] + doc.nunaliit_geom.bbox[2]) / 2;
+				var y = (doc.nunaliit_geom.bbox[1] + doc.nunaliit_geom.bbox[3]) / 2;
+				
+				_this.dispatchService.send(DH, {
+					type: 'N2ViewAnimation',
+					x: x,
+				        y: y,
+       				    doc: doc,
+				    projCode: 'EPSG:4326'
+				})
+			};
+			
+			// Remember that this feature is looked for by user
+			var fid = m.docId;
+			var features = this._getMapFeaturesIncludeingFidMapOl5(fid);
+			//this._startFindFeature(fid, features);
+			
+			// Check if we need to turn a layer on
+//			if( doc && doc.nunaliit_layers ) {
+//				var visible = false;
+//				var olLayerToTurnOn = null;
+//				for(var i=0,e=this.infoLayers.length; i<e; ++i) {
+//					var infoLayer = this.infoLayers[i];
+//					var layerId = infoLayer.id;
+//					var olLayer = infoLayer.olLayer;
+//
+//					if( doc.nunaliit_layers.indexOf(layerId) >= 0 
+//					 && olLayer ) {
+//						if( olLayer.visibility ) {
+//							visible = true;
+//						} else {
+//							olLayerToTurnOn = olLayer;
+//						};
+//					};
+//				};
+//	
+//				// Turn on layer
+//				if( !visible && olLayerToTurnOn ){
+//					olLayerToTurnOn.setVisibility(true);
+//				};
+//			};
+			
+		
+		} else if ( 'findIsAvailable' === type ){
+			//TODO just a work around.Not for production.
+			m.isAvailable = true;
 		}
 		this.updateN2Label();
 		this.changed();
-
 	}
-	
-
 	
 	_dispatch(m){
 		var dispatcher = this.dispatchService;
@@ -817,5 +891,9 @@ class N2SourceWithN2Intent extends VectorSource {
 			dispatcher.send(DH,m);
 		};
 	}
+    			
+
+			
+
 }
  export default N2SourceWithN2Intent;
