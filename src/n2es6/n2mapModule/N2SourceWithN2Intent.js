@@ -630,7 +630,8 @@ class N2SourceWithN2Intent extends VectorSource {
 			for(var i=0,e=features.length; i<e; ++i){
 				var f = features[i];
 				if( f ){
-					f.n2Intent = 'find';
+				    f.n2Intent = 'find';
+				    //f.changed();
 					//if( f.layer ) f.layer.drawFeature(f);
 				};
 			};
@@ -642,8 +643,9 @@ class N2SourceWithN2Intent extends VectorSource {
 		for(var i=0,e=this.findFeatureInfo.features.length; i<e; ++i){
 			var f = this.findFeatureInfo.features[i];
 			if( f ) {
-				f.n2Intent = null;
-				if( f.layer ) f.layer.drawFeature(f);
+			    f.n2Intent = null;
+			   // f.changed();
+				//if( f.layer ) f.layer.drawFeature(f);
 			};
 		};
 		
@@ -702,7 +704,10 @@ class N2SourceWithN2Intent extends VectorSource {
 							f.n2SelectIntent = featureInfo.intent;
 						};
 					} else {
-						f.n2_selected = false;
+					    //TODO using this to replace global source change
+					    //if (f.n2_selected) f.changed();
+					    f.n2_selected = false;
+					    
 					};
 					if( this.focusInfo.fids[f.fid] ){
 						this.focusInfo.features.push(f);
@@ -849,7 +854,7 @@ class N2SourceWithN2Intent extends VectorSource {
 			// Remember that this feature is looked for by user
 			var fid = m.docId;
 			var features = this._getMapFeaturesIncludeingFidMapOl5(fid);
-			//this._startFindFeature(fid, features);
+			this._startFindFeature(fid, features);
 			
 			// Check if we need to turn a layer on
 //			if( doc && doc.nunaliit_layers ) {

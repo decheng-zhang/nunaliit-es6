@@ -134,10 +134,14 @@ function handleEvent_(mapBrowserEvent) {
 	//** handle hover event **///
 	//TODO make a list of n2.interaction, instead all take care by this interaction object.
 	if (!pointerMove(mapBrowserEvent) && !click(mapBrowserEvent) ) {
+		console.log('EVENT type is :' + mapBrowserEvent.type);
 		return true;
 	}
 	
 	if (mapBrowserEvent.type == "pointermove") {
+		if (mapBrowserEvent.dragging){
+			return true;
+		}
 		let selected = null ;
 		let deselected = null;
 
@@ -208,7 +212,7 @@ function handleEvent_(mapBrowserEvent) {
 	}
 	//keep mapBrowserEvent propagating
 	
-    return true;
+    return pointerMove(mapBrowserEvent);
 }
 
 	export default N2Select;
