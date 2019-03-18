@@ -134,7 +134,7 @@ function handleEvent_(mapBrowserEvent) {
 	//** handle hover event **///
 	//TODO make a list of n2.interaction, instead all take care by this interaction object.
 	if (!pointerMove(mapBrowserEvent) && !click(mapBrowserEvent) ) {
-		console.log('EVENT type is :' + mapBrowserEvent.type);
+		//console.log('EVENT type is :' + mapBrowserEvent.type);
 		return true;
 	}
 	

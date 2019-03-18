@@ -16,6 +16,7 @@ import {default as N2SourceWithN2Intent} from './N2SourceWithN2Intent.js';
 
 
 import Map from 'ol/Map.js';
+import WebGLMap from 'ol/WebGLMap';
 import {default as VectorLayer} from 'ol/layer/Vector.js';
 import {default as LayerGroup} from 'ol/layer/Group.js';
 import {default as ImageLayer} from 'ol/layer/Image.js';
@@ -351,8 +352,9 @@ class N2MapCanvas  {
 				let res = evt.frameState.viewState.resolution;
 				let proj = _this.n2View.getProjection();
 				_this.resolution = res;
+				var extent = olView.calculateExtent();
 				_this.sources.forEach(function(source){
-					source.onChangedResolution(res,proj);
+					source.onChangedResolution(res,proj, extent);
 				});
 			})
 		}

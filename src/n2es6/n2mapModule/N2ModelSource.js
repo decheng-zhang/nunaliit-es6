@@ -234,24 +234,29 @@ class N2ModelSource extends Vector {
 	 */
 	onChangedResolution(res,proj, extent){
 		//$n2.log('resolution',res,proj);
-		//let featuresNeedUpdateFids = [];
-		//this.forEachFeatureInExtent(extent, function(f){
-		//	featuresNeedUpdateFids.push(f.fid);
-		//});
+		let featuresNeedUpdateFids = [];
+		this.forEachFeatureInExtent(extent, function(f){
+			featuresNeedUpdateFids.push(f.fid);
+		});
 
 
 		this.epsg4326Resolution = this._getResolutionInProjection(res,proj);
-
-		for(let docId in this.infoByDocId){
+		
+		var geometriesRequested = [];
+		
+		for(let docId of featuresNeedUpdateFids){
 			var docInfo = this.infoByDocId[docId];
+			
+			if (!docInfo) continue;
+			
 			var doc = docInfo.doc;
 			if( doc && doc.nunaliit_geom
 					&& doc.nunaliit_geom.simplified
 					&& doc.nunaliit_geom.simplified.resolutions ){
 				var bestAttName = undefined;
 				var bestResolution = undefined;
-				for(var attName in doc.nunaliit_geom.simplified.resolutions){
-					var attRes = 1 * doc.nunaliit_geom.simplified.resolutions[attName];
+				for(let attName in doc.nunaliit_geom.simplified.resolutions){
+					var attRes = parseFloat(doc.nunaliit_geom.simplified.resolutions[attName]);
 					if( attRes < this.epsg4326Resolution ){
 						if( typeof bestResolution === 'undefined' ){
 							bestResolution = attRes;
@@ -269,31 +274,28 @@ class N2ModelSource extends Vector {
 					docInfo.simplifiedName = bestAttName;
 					docInfo.simplifiedResolution = bestResolution;
 				};
+				
+				if( docInfo.simplifiedName ) {
+					// There is a simplification needed, do I have it already?
+					var wkt = undefined;
+					if( docInfo.simplifications ){
+						wkt = docInfo.simplifications[docInfo.simplifiedName];
+					};
+
+					// If I do not have it, request it
+					if( !wkt ){
+						var geomRequest = {
+								id: docId
+								,attName: docInfo.simplifiedName
+								,doc: doc
+						};
+						geometriesRequested.push(geomRequest);
+					};
+				};
 			};
 		};
 
-		var geometriesRequested = [];
-		for(var docId in this.infoByDocId){
-			var docInfo = this.infoByDocId[docId];
-			var doc = docInfo.doc;
-			if( docInfo.simplifiedName ) {
-				// There is a simplification needed, do I have it already?
-				var wkt = undefined;
-				if( docInfo.simplifications ){
-					wkt = docInfo.simplifications[docInfo.simplifiedName];
-				};
 
-				// If I do not have it, request it
-				if( !wkt ){
-					var geomRequest = {
-							id: docId
-							,attName: docInfo.simplifiedName
-							,doc: doc
-					};
-					geometriesRequested.push(geomRequest);
-				};
-			};
-		}
 
 		this.dispatchService.send(DH,{
 			type: 'simplifiedGeometryRequest'
