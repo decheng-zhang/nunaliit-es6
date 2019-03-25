@@ -9,11 +9,11 @@ import EventType from 'ol/events/EventType.js';
 
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
 var DH = 'n2.canvasMap';
+
 /**
  * @classdesc
  * @extends VectorSource
  */
-
 class N2SourceWithN2Intent extends VectorSource {
 
 	/**
@@ -34,8 +34,8 @@ class N2SourceWithN2Intent extends VectorSource {
 		this.extent = undefined;
 		this.projection = undefined;
 		/**
-		 * [source description]
-		 * @type {[type]}
+		 * source description
+		 * @type {import("ol/source/Vector.js").like}
 		 */
 		this.source = options.source;
 		/**

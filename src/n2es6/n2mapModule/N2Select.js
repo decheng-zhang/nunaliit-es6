@@ -123,9 +123,8 @@ class N2Select extends Interaction {
 	
 }
   /**
-   * [handleMove_ description]
-   * @param  {import("../MapBrowserEvent.js").default} mapBrowserEvent [description]
-   * @return {[type]}   [description]
+   * handleMove_ description
+   * @param  {import("../MapBrowserEvent.js").default} mapBrowserEvent   
    * @this {N2Select}
    */
 function handleEvent_(mapBrowserEvent) {

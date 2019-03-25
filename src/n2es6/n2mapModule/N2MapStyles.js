@@ -75,10 +75,9 @@ class N2MapStyles {
 
 	}
 	/**
-	* [loadStyleFromN2Symbolizer description] The function that convert a n2 symbolizer to
+	* The function that convert a n2 symbolizer to
 	* ol5 map style obj.
-	* @param  {import 'nunaliit2/n2.styleRule.js'.Symbolizer} symbolizer []
-	* @return {import 'ol/style/Style.js'.default} [produce a ol5 Style object]
+	* @return {import("ol/style/Style.js").default} produce a ol5 Style object
 	*/
  	loadStyleFromN2Symbolizer(symbols , geometryType){
 
@@ -87,8 +86,8 @@ class N2MapStyles {
 	}
 	/**
 	* [getOl5StyleObjFromSymbol return the ol5 stylemap object from nunaliit2 internal style tags
-	* @param  {[type]} symbols [An nunaliit2 style symbolizer.symbols]
-	* @return {[type]}         [import 'ol/style/Style.js'.default]
+	* @param  {n2styleSymbol} symbols An nunaliit2 style symbolizer.symbols
+	* @return {import("ol/style/Style.js").default}
 	*/
 	getOl5StyleObjFromSymbol(symbols, geometryType) {
 		if ( !StyleNamesMapForAll[geometryType.toLowerCase()] ){
@@ -106,8 +105,8 @@ class N2MapStyles {
 	}
 	/**
 	* [getOl5StyleObjFromOl5StyleNames description]
-	* @param  {[type]} n2InternalStyle [description]
-	* @return {[type]}                 [description]
+	* @param  {n2InternalStyle} n2InternalStyle 
+	* @return {import("ol/style/Style.js").default} 
 	*/
 	getOl5StyleObjFromStyleName(n2InternalStyle) {
 		var handle = {};
@@ -337,25 +336,19 @@ class N2MapStyles {
 		}
 		
 	}
-	
-	// return array of [r,g,b,a] from any valid color. if failed returns undefined
-	/*
-	Examples:
-	colorValues('rgba(11,22,33,.44)'); // [11, 22, 33, 0.44]
-	colorValues('rgb(11,22,33)'); // [11, 22, 33, 1]
-	colorValues('#abc'); // [170, 187, 204, 1]
-	colorValues('#abc6'); // [170, 187, 204, 0.4]
-	colorValues('#aabbcc'); // [170, 187, 204, 1]
-	colorValues('#aabbcc66'); // [170, 187, 204, 0.4]
-	colorValues('asdf'); // undefined
-	colorValues(''); // undefined
-	colorValues(NaN); // Script Error
-	colorValues(123); // Script Error
-	*/
 	/**
-	* [colorValues description]
-	* @param  {[type]} color [description]
-	* @return {[type]}       [description]
+	* return array of [r,g,b,a] from any valid color. if failed returns undefined
+	* Examples:
+	* colorValues('rgba(11,22,33,.44)'); // [11, 22, 33, 0.44]
+	* colorValues('rgb(11,22,33)'); // [11, 22, 33, 1]
+	* colorValues('#abc'); // [170, 187, 204, 1]
+	* colorValues('#abc6'); // [170, 187, 204, 0.4]
+	* colorValues('#aabbcc'); // [170, 187, 204, 1]
+	* colorValues('#aabbcc66'); // [170, 187, 204, 0.4]
+	* colorValues('asdf'); // undefined
+	* colorValues(''); // undefined
+	* colorValues(NaN); // Script Error
+	* colorValues(123); // Script Error
 	*/
 	colorValues(color){
 		if (!color)

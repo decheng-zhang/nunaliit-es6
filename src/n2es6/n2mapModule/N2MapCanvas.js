@@ -132,15 +132,9 @@ class N2MapCanvas  {
 				this.showService = config.directory.showService;
 			};
 		};
-		/**
-		 * @protected
-		 * @type {Array} sources : Array<ol.source.Vector>
-		 */
+		
 		this.sources = [];
-		/**
-		 * @protected
-		 * @type {Array} overlayInfos : Array<./N2LayerInfo>
-		 */
+
 		this.overlayInfos = [];
 
 
@@ -157,10 +151,7 @@ class N2MapCanvas  {
 
 		this.n2MapStyles = new N2MapStyles();
 
-		/**
-		 * @type { hashset<(import ol/interaction).like> }
-		 * This hashset store all the interaction used in different toolbar-controls
-		 */
+
 		this.interactionSet = {
 				selectInteraction : null,
 				drawInteraction : null
