@@ -7,6 +7,8 @@ import {default as CouchDbSource} from './N2CouchDbSource.js';
 import N2ModelSource from './N2ModelSource.js';
 import {default as LayerInfo} from './N2LayerInfo';
 import {default as N2MapStyles} from './N2MapStyles.js';
+import {default as customPointStyle} from './N2CustomPointStyle.js';
+import {Fill, RegularShape, Stroke, Style, Text} from 'ol/style.js';
 import {createDefaultStyle} from 'ol/style/Style.js'
 
 import {default as ImageSource} from 'ol/source/Image.js';
@@ -64,18 +66,18 @@ const VENDOR =  {
 
 const olStyleNames = {
 		"fill": "fillColor"
-			,"fill-opacity": "fillOpacity"
-				,"stroke": "strokeColor"
-					,"stroke-opacity": "strokeOpacity"
-						,"stroke-width": "strokeWidth"
-							,"stroke-linecap": "strokeLinecap"
-								,"stroke-dasharray": "strokeDashstyle"
-									,"r": "pointRadius"
-										,"pointer-events": "pointEvents"
-											,"color": "fontColor"
-												,"font-family": "fontFamily"
-													,"font-size": "fontSize"
-														,"font-weight": "fontWeight"
+		,"fill-opacity": "fillOpacity"
+		,"stroke": "strokeColor"
+		,"stroke-opacity": "strokeOpacity"
+		,"stroke-width": "strokeWidth"
+		,"stroke-linecap": "strokeLinecap"
+		,"stroke-dasharray": "strokeDashstyle"
+		,"r": "pointRadius"
+		,"pointer-events": "pointEvents"
+		,"color": "fontColor"
+		,"font-family": "fontFamily"
+		,"font-size": "fontSize"
+		,"font-weight": "fontWeight"
 };
 const stringStyles = {
 		"label": true
@@ -499,6 +501,7 @@ class N2MapCanvas  {
 
 		var fg = [];
 		var _this = this;
+		var DONETESTCACHE = {};
 		if( Sources) {
 			Sources.forEach(function(source){
 
@@ -508,7 +511,8 @@ class N2MapCanvas  {
 				var n2IntentSource = new N2SourceWithN2Intent({
 					interaction: _this.interactionSet.selectInteraction,
 					source: clusterSource,
-					dispatchService: _this.dispatchService
+					dispatchService: _this.dispatchService,
+					overlaps: false
 				});
 				var vectorLayer = new VectorLayer({
 					title: "CouchDb",
@@ -530,7 +534,40 @@ class N2MapCanvas  {
 		function StyleFn(feature, resolution){
 
 			var f = feature;
-
+			
+//			if(f.getGeometry().getType() === "Point"){
+//				if (!DONETESTCACHE[f.fid]){
+//				var ldata =[];
+//				let e = Math.round(10*Math.random());
+//				let nb = 0;
+//				for(var k =0;k<e;k++){
+//					let n = Math.round(10*Math.random());
+//					ldata.push(n);
+//					nb += n;
+//				}
+//				let thisradius = nb;
+//				
+//				
+//				
+//				let thisStyle = new Style({
+//					image: new customPointStyle({
+//						type: "treering", 
+//						radius : thisradius,
+//						data: ldata,
+//						animation: false,
+//						stroke: new Stroke({
+//							color: "#000",
+//							width: 2
+//						})
+//					})
+//				})
+//				DONETESTCACHE[f.fid] = thisStyle;
+//				return [thisStyle];
+//			} else {
+//				return DONETESTCACHE[f.fid];
+//			}
+//			}
+			
 			for(var fnName in featureStyleFunctions){
 				f[fnName] = featureStyleFunctions[fnName];
 			};

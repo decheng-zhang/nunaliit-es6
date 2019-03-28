@@ -4,7 +4,9 @@
 
 import {getUid} from 'ol/util.js';
 import {assign} from 'ol/obj.js';
-import Cluster from 'ol/source/Cluster.js';
+import {listen, unlistenByKey} from 'ol/events.js';
+import EventType from 'ol/events/EventType.js';
+import VectorSource from 'ol/source/Vector.js';
 //import VectorSource from '';
 import {transformExtent} from 'ol/proj.js';
 import {getCenter, buffer, createEmpty, createOrUpdateFromCoordinate} from 'ol/extent.js';
@@ -17,7 +19,7 @@ import {scale as scaleCoordinate, add as addCoordinate} from 'ol/coordinate.js';
 * system
 * @api
 */
-class N2Cluster extends Cluster {
+class N2Cluster extends VectorSource {
 
 	/**
 	* @param {Options} options CLuster options
@@ -88,6 +90,9 @@ class N2Cluster extends Cluster {
 	     * @protected
 	     */
 	    this.features = [];
+	    this.source = options.source;
+	    
+	    listen(this.source, EventType.CHANGE, this.refresh, this);
 
 	}
 	/**
@@ -104,7 +109,45 @@ class N2Cluster extends Cluster {
 			this.addFeatures(this.features);
 		}
 	}
+	
+	refresh () {
+		this.clear();
+		this.cluster();
+		this.addFeatures(this.features);
+		
+	}
+	clear(opt_fast){
+		
+		 if (opt_fast) {
+		      for (var featureId in this.featureChangeKeys_) {
+		        var keys = this.featureChangeKeys_[featureId];
+		        keys.forEach(unlistenByKey);
+		      }
+		      if (!this.featuresCollection_) {
+		        this.featureChangeKeys_ = {};
+		        this.idIndex_ = {};
+		        this.undefIdIndex_ = {};
+		      }
+		    } else {
+		      if (this.featuresRtree_) {
+		        this.featuresRtree_.forEach(this.removeFeatureInternal, this);
+		        for (var id in this.nullGeometryFeatures_) {
+		          this.removeFeatureInternal(this.nullGeometryFeatures_[id]);
+		        }
+		      }
+		    }
+		    if (this.featuresCollection_) {
+		      this.featuresCollection_.clear();
+		    }
 
+		    if (this.featuresRtree_) {
+		      this.featuresRtree_.clear();
+		    }
+		    this.loadedExtentsRtree_.clear();
+		    this.nullGeometryFeatures_ = {};
+
+		
+	}
 	/**
 	* The cluster function for cluster Point, Line and Geometry
 	* @override
@@ -115,17 +158,17 @@ class N2Cluster extends Cluster {
 			return;
 		}
 		this.features.length = 0;
-		const extent = createEmpty();
-		const mapDistance = this.distance * this.resolution;
-		const features = this.source.getFeatures();
+		var extent = createEmpty();
+		var mapDistance = this.distance * this.resolution;
+		var features = this.source.getFeatures();
 		/**
 		* @type {!Object<string, boolean>}
 		*/
-		const clustered = {};
-		const taboo = {};
+		var clustered = {};
+		var taboo = {};
 		for (let i = 0, ii = features.length; i < ii; i++) {
 			let feature = features[i];
-			const uid = getUid(feature);
+			var uid = getUid(feature);
 			let hasInTaboo = (getUid(feature) in taboo);
 			if (hasInTaboo){
 				continue;
@@ -139,7 +182,7 @@ class N2Cluster extends Cluster {
 				}
 				// Pass in infinity extent to by-pass OpenLayers bug
 				var geomExtent = feature.getGeometry().getExtent();
-				const geomCentroid = getCenter(geomExtent);
+				var geomCentroid = getCenter(geomExtent);
 				createOrUpdateFromCoordinate(geomCentroid, extent);
 				buffer(extent, mapDistance, extent);
 
@@ -169,7 +212,7 @@ class N2Cluster extends Cluster {
 	*/
 	createCluster(features) {
 
-		const centroid = [0, 0];
+		var centroid = [0, 0];
 		var count = 0;
 		for (let i = features.length - 1; i >= 0; --i) {
 			var geom = features[i].getGeometry();
@@ -177,7 +220,7 @@ class N2Cluster extends Cluster {
 				// Pass in infinity extent to by-pass OpenLayers bug
 				var geomExtent = geom.getExtent();
 				if( geomExtent ){
-					const geomCentroid = getCenter(geomExtent);
+					var geomCentroid = getCenter(geomExtent);
 					if (geomCentroid) {
 						addCoordinate(centroid, geomCentroid);
 						++count;
@@ -187,7 +230,7 @@ class N2Cluster extends Cluster {
 		}
 		scaleCoordinate(centroid, 1/count);
 
-		const cluster = new Feature(new Point(centroid));
+		var cluster = new Feature(new Point(centroid));
 		cluster.cluster = features;
 		cluster.fid = this.clusterPrefix + this.clusterId;
 		++this.clusterId;
@@ -213,13 +256,13 @@ class N2Cluster extends Cluster {
 			// Small polygons and lines are turned into a cluster
 			eligible = false;
 
-			const extent = this._computeFullBoundingBox(feature);
+			var extent = this._computeFullBoundingBox(feature);
 			if (extent) {
 				// If the original bounds are larger than what is expected
 				// by the resolution, do not cluster. At one point, the correct
 				// geometry will arrive to show this feature.
-				const xLen = (extent[2] - extent[0]) / this.resolution;
-				const yLen = (extent[3] - extent[1]) / this.resolution;
+				var xLen = (extent[2] - extent[0]) / this.resolution;
+				var yLen = (extent[3] - extent[1]) / this.resolution;
 				if ((xLen) < this.minimumLinePixelSize
 				&& (yLen) < this.minimumLinePixelSize) {
 					eligible = true;
@@ -231,10 +274,10 @@ class N2Cluster extends Cluster {
 					eligible = true;
 				} else {
 					// Pass in infinity extent to by-pass OpenLayers bug
-					const bounds = feature.getGeometry().getExtent();
+					var bounds = feature.getGeometry().getExtent();
 
-					const xLen = (bounds[2]-bounds[0])/ this.resolution;
-					const yLen = (bounds[3]-bounds[1]) / this.resolution;
+					var xLen = (bounds[2]-bounds[0])/ this.resolution;
+					var yLen = (bounds[3]-bounds[1]) / this.resolution;
 					if ((xLen) < this.minimumLinePixelSize
 					&& (yLen) < this.minimumLinePixelSize) {
 						eligible = true;
@@ -284,7 +327,7 @@ class N2Cluster extends Cluster {
 			&& f.n2GeomProj
 			&& mapProj) {
 
-				const bbox = f.data.nunaliit_geom.bbox;
+				var bbox = f.data.nunaliit_geom.bbox;
 				if (Array.isArray(bbox)
 				&& bbox.length >= 4) {
 					geomBounds = bbox;

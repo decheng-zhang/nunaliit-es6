@@ -3,7 +3,7 @@
 */
 
 import VectorSource from 'ol/source/Vector.js';
-import {listen} from 'ol/events.js';
+import {listen, unlisten} from 'ol/events.js';
 import EventType from 'ol/events/EventType.js';
 
 
@@ -78,8 +78,8 @@ class N2SourceWithN2Intent extends VectorSource {
 		listen(this.source, EventType.CHANGE, this.refresh, this);
 		
 		
-		//this.interaction_.on( "hover",  this.onHover.bind(this));
-		this.interaction_.setHoverCallback(this.onHover.bind(this));
+		this.interaction_.on( "hover",  this.onHover.bind(this));
+		//this.interaction_.setHoverCallback(this.onHover.bind(this));
 		this.interaction_.on( "clicked",  this.onClicked.bind(this));
 		//this.interaction_.on( "focus",  this.onFocus.bind(this));
 		//this.interaction_.on( "find",  this.onFind.bind(this));
@@ -103,9 +103,9 @@ class N2SourceWithN2Intent extends VectorSource {
 		};
 	}
 
-	onHover(target){
+	onHover(evt){
 
-		let selected  = target;
+		let selected  = evt.selected;
 
 
 		//In case, there is single feature inside a N2Cluster features collection
@@ -251,19 +251,19 @@ class N2SourceWithN2Intent extends VectorSource {
 		};
 		
 		function computePopupPosition(){
-	    	var popup_lonlat = null;
+			var popup_lonlat = null;
 			var lastMapXy = _this.lastMapXy;
-	    	if( null != lastMapXy ) {    	
-	            var lonLat = _this.map.getLonLatFromPixel(lastMapXy);
-	            if( lonLat ) { 
-	            	popup_lonlat = lonLat;
-	            };
-	    	};
-	    	if( !popup_lonlat ) {
-	    		// Take centre of geometry
-		    	popup_lonlat = feature.geometry.getBounds().getCenterLonLat();
-	    	};
-	    	return popup_lonlat;
+			if( null != lastMapXy ) {    	
+				var lonLat = _this.map.getLonLatFromPixel(lastMapXy);
+				if( lonLat ) { 
+					popup_lonlat = lonLat;
+				};
+			};
+			if( !popup_lonlat ) {
+				// Take centre of geometry
+				popup_lonlat = feature.geometry.getBounds().getCenterLonLat();
+			};
+			return popup_lonlat;
 		};
 		
 		function initiatePopup(){
@@ -313,23 +313,23 @@ class N2SourceWithN2Intent extends VectorSource {
 			};
 
 			// Figure out popup position
-	    	var popup_lonlat = computePopupPosition();
-	    	
-	    	// Create pop-up
-	    	var popup = new OpenLayers.Popup.Anchored(
-	    		null // Let OpenLayers assign id
-	    		,popup_lonlat
-	    		,null
-	    		,popupHtml
-	    		,{
-	    			size: new OpenLayers.Size(10,10)
-	    			,offset: new OpenLayers.Pixel(-5,-5)
-				}
-				,false
-				,onPopupClose
+			var popup_lonlat = computePopupPosition();
+
+			// Create pop-up
+			var popup = new OpenLayers.Popup.Anchored(
+					null // Let OpenLayers assign id
+					,popup_lonlat
+					,null
+					,popupHtml
+					,{
+						size: new OpenLayers.Size(10,10)
+					,offset: new OpenLayers.Pixel(-5,-5)
+					}
+					,false
+					,onPopupClose
 			);
-	    	popup.autoSize = true;
-	    	popup.panMapIfOutOfView = true;
+			popup.autoSize = true;
+			popup.panMapIfOutOfView = true;
 			popup.setOpacity("80");
 
 			// Set maximum pop-up size
@@ -654,12 +654,14 @@ class N2SourceWithN2Intent extends VectorSource {
 	}
 	
 	loadFeatures(extent, resolution, projection) {
+		unlisten(this.source, EventType.CHANGE, this.refresh, this);
 		this.source.loadFeatures(extent, resolution, projection);
+		listen(this.source, EventType.CHANGE, this.refresh, this);
 		if (resolution !== this.resolution) {
 			this.resolution = resolution;
 			this.projection = projection;
 			this.extent = extent;
-			super.refresh();
+			this.refresh();
 		}
 	}
 
@@ -668,7 +670,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		this.clear();
 		this.updateN2Label();
 		this.addFeatures(this.features_);
-		super.refresh();
+		//super.refresh();
 		
 		
 	}
@@ -713,7 +715,9 @@ class N2SourceWithN2Intent extends VectorSource {
 						this.focusInfo.features.push(f);
 						f.isHovered = true;
 						f.n2_hovered = true;
+						//f.changed();
 					} else {
+						//if (f.n2_hovered) f.changed();
 						f.n2_hovered = false;
 					};
 					if( this.findFeatureInfo.fid === f.fid ){
@@ -748,7 +752,9 @@ class N2SourceWithN2Intent extends VectorSource {
 								this.focusInfo.features.push(f);
 								f.isHovered = true;
 								f.n2_hovered = true;
+								//f.changed();
 							} else {
+								//if(f.n2_hovered) f.changed();
 								f.n2_hovered = false;
 							};
 							if( this.findFeatureInfo.fid === clusterFeature.fid ){
@@ -768,8 +774,8 @@ class N2SourceWithN2Intent extends VectorSource {
 	}
 	
 	_handleDispatch(m){
+		
 		var _this = this;
-
 		var type = m.type;
 		if( 'focusOn' === type ) {
 			if( m.docId ){
@@ -887,7 +893,9 @@ class N2SourceWithN2Intent extends VectorSource {
 			m.isAvailable = true;
 		}
 		this.updateN2Label();
+		console.log("The map should be rerendered now");
 		this.changed();
+		
 	}
 	
 	_dispatch(m){

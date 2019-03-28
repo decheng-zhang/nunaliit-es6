@@ -61,8 +61,8 @@ class N2CustomPointStyle extends RegularShape{
 		{	this.colors_ = options.colors;
 		}
 		else 
-		{	this.colors_ = ol_style_Chart.colors[options.colors];
-		if(!this.colors_) this.colors_ = ol_style_Chart.colors.classic;
+		{	this.colors_ = colors[options.colors];
+		if(!this.colors_) this.colors_ = colors.classic;
 		}
 
 		this.renderChart_();
@@ -132,7 +132,7 @@ class N2CustomPointStyle extends RegularShape{
 	
 	//	draw the circle on the canvas
 		var context = (canvas.getContext('2d'));
-		context.clearRect(0, 0, canvas.width, canvas.height);
+		context.clearRect(0, 0, canvas.width, canvas.width);
 		context.lineJoin = 'round';
 	
 		var sum=0;
@@ -151,6 +151,30 @@ class N2CustomPointStyle extends RegularShape{
 	
 	//	Draw pie
 		switch (this.type_){
+		case "treering":{
+			var a, a0 = Math.PI * (step-1.5);
+			var r = 0;
+			c = canvas.width/2;
+			context.strokeStyle = strokeStyle;
+			context.lineWidth = strokeWidth;
+			context.save();
+			context.beginPath();
+			context.rect ( 0,0,2*c,2*c );
+			for (i=0; i<this.data_.length; i++)	{
+
+					context.beginPath();
+					//context.moveTo(c,c);
+					context.strokeStyle = this.colors_[i%this.colors_.length];
+					r = r + this.radius_*this.data_[i]/sum ;
+					context.arc ( c, c, r, 0,  2*Math.PI);
+					context.closePath();
+					context.stroke();
+					
+				
+			}
+			context.restore();
+			break;
+		}
 			case "donut":
 			case "pie3D":
 			case "pie": {
@@ -161,38 +185,38 @@ class N2CustomPointStyle extends RegularShape{
 				context.save();
 				if (this.type_=="pie3D") 
 				{	context.translate(0, c*0.3);
-				context.scale(1, 0.7);
-				context.beginPath();
-				context.fillStyle = "#369";
-				context.arc ( c, c*1.4, this.radius_ *step, 0, 2*Math.PI);
-				context.fill();
-				context.stroke();
+					context.scale(1, 0.7);
+					context.beginPath();
+					context.fillStyle = "#369";
+					context.arc ( c, c*1.4, this.radius_ *step, 0, 2*Math.PI);
+					context.fill();
+					context.stroke();
 				}
 				if (this.type_=="donut")
 				{	context.save();
-				context.beginPath();
-				context.rect ( 0,0,2*c,2*c );
-				context.arc ( c, c, this.radius_ *step *this.donutratio_, 0, 2*Math.PI);
-				context.clip("evenodd");
+					context.beginPath();
+					context.rect ( 0,0,2*c,2*c );
+					context.arc ( c, c, this.radius_ *step *this.donutratio_, 0, 2*Math.PI);
+					context.clip("evenodd");
 				}
 				for (i=0; i<this.data_.length; i++)
 				{	context.beginPath();
-				context.moveTo(c,c);
-				context.fillStyle = this.colors_[i%this.colors_.length];
-				a = a0 + 2*Math.PI*this.data_[i]/sum *step;
-				context.arc ( c, c, this.radius_ *step, a0, a);
-				context.closePath();
-				context.fill();
-				context.stroke();
-				a0 = a;
+					context.moveTo(c,c);
+					context.fillStyle = this.colors_[i%this.colors_.length];
+					a = a0 + 2*Math.PI*this.data_[i]/sum *step;
+					context.arc ( c, c, this.radius_ *step, a0, a);
+					context.closePath();
+					context.fill();
+					context.stroke();
+					a0 = a;
 				}
 				if (this.type_=="donut")
 				{	context.restore();
-				context.beginPath();
-				context.strokeStyle = strokeStyle;
-				context.lineWidth = strokeWidth;
-				context.arc ( c, c, this.radius_ *step *this.donutratio_, Math.PI * (step-1.5), a0);
-				context.stroke();
+					context.beginPath();
+					context.strokeStyle = strokeStyle;
+					context.lineWidth = strokeWidth;
+					context.arc ( c, c, this.radius_ *step *this.donutratio_, Math.PI * (step-1.5), a0);
+					context.stroke();
 				}
 				context.restore();
 				break;
