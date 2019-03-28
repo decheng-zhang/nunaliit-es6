@@ -150,6 +150,7 @@ class N2MapCanvas  {
 
 
 		this.n2View = undefined;
+		this.n2Map = undefined;
 
 		this.n2MapStyles = new N2MapStyles();
 
@@ -166,7 +167,8 @@ class N2MapCanvas  {
 			var f = function(m){
 				_this._handleDispatch(m);
 			};
-			this.dispatchService.register(DH,'N2ViewAnimation',f);
+			this.dispatchService.register(DH,'n2ViewAnimation',f);
+			this.dispatchService.register(DH, 'n2rerender', f);
 		};
 
 		$n2.log(this._classname,this);
@@ -178,6 +180,8 @@ class N2MapCanvas  {
 
 		this._drawMap();
 		opts.onSuccess();
+		
+		
 	}
 
 	/**
@@ -338,8 +342,9 @@ class N2MapCanvas  {
 				view: olView
 
 		});
-
+		this.n2Map = customMap;
 		customMap.on('movestart', onMoveStart);
+
 		function onMoveStart(evt){
 			customMap.once('moveend', function(evt){
 				let res = evt.frameState.viewState.resolution;
@@ -372,10 +377,11 @@ class N2MapCanvas  {
 
 
 		customMap.set("layergroup",
-				new LayerGroup({layers: [bgGroup, overlayGroup]}) )
+				new LayerGroup({layers: [bgGroup, overlayGroup]}) 
+		);
 
-
-				var customLayerSwitcher = new LayerSwitcher({
+		
+		var customLayerSwitcher = new LayerSwitcher({
 					tipLabel: 'Legend' // Optional label for button
 				});
 		customMap.addControl(customLayerSwitcher);
@@ -759,7 +765,7 @@ class N2MapCanvas  {
 
 		var _this = this;
 		var type = m.type;
-		if ('N2ViewAnimation' === type){
+		if ('n2ViewAnimation' === type){
 			let x = m.x;
 			let y = m.y;
 			let sourceProjCode = m.projCode;
@@ -783,8 +789,7 @@ class N2MapCanvas  {
 //			zoom: _this.n2View.getZoom()-1,
 //			duration: 500
 //			});
-			if (extent[0] === extent[2]
-			|| extent[1] === extent [3]){
+			if (extent[0] === extent[2] || extent[1] === extent [3]){
 				_this.n2View.animate({
 					center: targetCenter,
 					duration: 500
@@ -796,7 +801,15 @@ class N2MapCanvas  {
 				_this.n2View.fit(extent,{duration: 1500});
 			}
 
+		} else if ('n2rerender' === type){
+			if (_this.n2Map){
+				_this.overlayLayers.forEach(function(overlayLayer){
+						overlayLayer.changed();
+					
+				});
+			}
 		}
+		
 	}
 
 	/**

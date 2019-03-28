@@ -105,7 +105,8 @@ class N2Cluster extends VectorSource {
 			this.clear(true);
 			this.resolution = resolution;
 			this.projection = projection;
-			this.cluster();
+			this.extent = extent;
+			this.cluster(extent);
 			this.addFeatures(this.features);
 		}
 	}
@@ -152,7 +153,7 @@ class N2Cluster extends VectorSource {
 	* The cluster function for cluster Point, Line and Geometry
 	* @override
 	*/
-	cluster() {
+	cluster(opt_extent) {
 		var that_ = this;
 		if (this.resolution === undefined) {
 			return;
@@ -160,7 +161,12 @@ class N2Cluster extends VectorSource {
 		this.features.length = 0;
 		var extent = createEmpty();
 		var mapDistance = this.distance * this.resolution;
-		var features = this.source.getFeatures();
+		var features = null;
+		if (opt_extent){
+			features = this.source.getFeaturesInExtent(opt_extent);
+		} else {
+			features = this.source.getFeatures();
+		}
 		/**
 		* @type {!Object<string, boolean>}
 		*/

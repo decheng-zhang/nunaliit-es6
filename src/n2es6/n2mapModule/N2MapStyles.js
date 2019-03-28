@@ -3,6 +3,8 @@
 */
 import {Fill, RegularShape, Stroke, Style, Text} from 'ol/style.js';
 import CircleStyle from 'ol/style/Circle';
+import N2LRU from './N2LRU.js'; 
+import hash from 'es-hash';
 
 const StyleNamesMapForAll = 
 	{
@@ -71,7 +73,7 @@ class N2MapStyles {
 	*/
 	constructor(){
 
-		this.cache = {};
+		this.lrucache = new N2LRU(50);
 
 	}
 	/**
@@ -80,9 +82,13 @@ class N2MapStyles {
 	* @return {import("ol/style/Style.js").default} produce a ol5 Style object
 	*/
  	loadStyleFromN2Symbolizer(symbols , geometryType){
-
- 		var styleObj =  this.getOl5StyleObjFromSymbol(symbols, geometryType);	
-		return styleObj;
+ 		let candidate = this.lrucache.get(hash(symbols));
+ 		if (candidate){
+ 			return candidate;
+ 		}
+ 		candidate =  this.getOl5StyleObjFromSymbol(symbols, geometryType);	
+		this.lrucache.set(hash(symbols), candidate );
+		return candidate;
 	}
 	/**
 	* [getOl5StyleObjFromSymbol return the ol5 stylemap object from nunaliit2 internal style tags
@@ -113,24 +119,27 @@ class N2MapStyles {
 		var _this = this;
 		for (var tags in n2InternalStyle) {
 			var arr = tags.split(".");
-			handle.style  = recurProps ( arr, handle , n2InternalStyle[tags]);
+			handle.style  = recurProps ( arr, handle , n2InternalStyle[tags], 0);
+			arr = null;
 		}
 		return [handle.style];
 
-		function recurProps (tagarr, supernode, value){
-			if(  !tagarr ){
+		function recurProps (arr, supernode, value, level){
+			if(  level >= arr.length ){
 				return;
 			}
-			let currNodeString = tagarr[0];
+			var nextlevel = level+1;
+			let currNodeString = arr[level];
+			let nextNodeString = arr[nextlevel];
 			if (currNodeString === 'Style') {
 				let currnode = supernode.style
 				if (!currnode) {
 					currnode = new Style({})
 				}
-				currnode[tagarr[1]+'_'] =
-				recurProps (tagarr.slice(1),
+				currnode[nextNodeString+'_'] =
+				recurProps (arr,
 						currnode,
-						value)
+						value, nextlevel)
 				return  currnode;
 
 			} else if (currNodeString === 'image') {
@@ -144,10 +153,10 @@ class N2MapStyles {
 					});
 				}
 				currnode['checksums_'] = undefined;
-				currnode[tagarr[1]+'_'] =
-				recurProps (tagarr.slice(1),
+				currnode[nextNodeString+'_'] =
+				recurProps (arr,
 						currnode,
-						value)
+						value, nextlevel)
 				currnode.render_();
 				return  currnode;
 
@@ -157,13 +166,14 @@ class N2MapStyles {
 					currnode = new Text();
 				}
 				
-				if (tagarr.length > 1) {
-					currnode[tagarr[1]+'_'] =
-						recurProps (tagarr.slice(1),
+				if (arr.length > nextlevel) {
+					currnode[nextNodeString+'_'] =
+						recurProps (arr,
 								currnode,
-								value);
+								value,
+								nextlevel);
 					return  currnode;
-				} else if (tagarr.length === 1) {
+				} else if (arr.length === nextlevel) {
 					return value;
 				}
 
@@ -174,10 +184,11 @@ class N2MapStyles {
 					currnode = new Fill({color: '#ffffff'});
 				}
 				currnode['checksum_'] = undefined;
-				currnode[tagarr[1]+'_'] =
-				recurProps (tagarr.slice(1),
+				currnode[nextNodeString+'_'] =
+				recurProps (arr,
 						currnode,
-						value);
+						value,
+						nextlevel);
 
 
 				return  currnode;
@@ -189,10 +200,10 @@ class N2MapStyles {
 					currnode = new Stroke({color: '#ee9999', width: 2});
 				}
 				currnode['checksum_'] = undefined;
-				currnode[tagarr[1]+ '_'] =
-				recurProps (tagarr.slice(1),
+				currnode[nextNodeString+ '_'] =
+				recurProps (arr,
 						currnode,
-						value);
+						value, nextlevel);
 				return  currnode;
 
 
@@ -204,14 +215,14 @@ class N2MapStyles {
 					colorArr = _this.colorValues('#ee9999');
 				}
 
-				if (tagarr.length === 1) {
+				if (arr.length === nextlevel) {
 					newColorArr = _this.colorValues(value);
 					if (newColorArr && Array.isArray(newColorArr)) {
 						colorArr = newColorArr;
 					}
 					return colorArr;
-				} else if (tagarr.length > 1) {
-					return recurProps (tagarr.slice(1), colorArr, value);
+				} else if (arr.length > nextlevel) {
+					return recurProps (arr, colorArr, value, nextlevel);
 				} else {
 					throw new Error ("N2MapStyles: input color-string error");
 				}
@@ -237,10 +248,10 @@ class N2MapStyles {
 //				} else if (fontArr.length < 3 && fontArr.length > 1) {
 //					fontArr.unshift('normal');
 //				}
-				if (tagarr.length === 1) {
+				if (arr.length === nextlevel) {
 					return fontArr.join(' ');
-				} else if (tagarr.length > 1){
-					return recurProps (tagarr.slice(1), fontArr, value);
+				} else if (arr.length > nextlevel){
+					return recurProps (arr, fontArr, value, nextlevel);
 				} else {
 					throw new Error ("N2MapStyles: input font-string error");
 				}
@@ -360,8 +371,6 @@ class N2MapStyles {
 				return color.push(1);
 			}
 		}
-		if (typeof color === 'string' && color.toLowerCase() === 'transparent')
-		return [0, 0, 0, 0];
 		if (color[0] === '#')
 		{
 			if (color.length < 7)

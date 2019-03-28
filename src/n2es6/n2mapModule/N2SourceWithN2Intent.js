@@ -668,7 +668,7 @@ class N2SourceWithN2Intent extends VectorSource {
 	refresh() {
 		
 		this.clear();
-		this.updateN2Label();
+		this.updateN2Label(this.extent);
 		this.addFeatures(this.features_);
 		//super.refresh();
 		
@@ -849,10 +849,10 @@ class N2SourceWithN2Intent extends VectorSource {
 				var y = (doc.nunaliit_geom.bbox[1] + doc.nunaliit_geom.bbox[3]) / 2;
 				
 				_this.dispatchService.send(DH, {
-					type: 'N2ViewAnimation',
+					type: 'n2ViewAnimation',
 					x: x,
-				        y: y,
-       				    doc: doc,
+				    y: y,
+       				doc: doc,
 				    projCode: 'EPSG:4326'
 				})
 			};
@@ -892,10 +892,12 @@ class N2SourceWithN2Intent extends VectorSource {
 			//TODO just a work around.Not for production.
 			m.isAvailable = true;
 		}
-		this.updateN2Label();
-		console.log("The map should be rerendered now");
-		this.changed();
-		
+		if (this.extent) {
+			this.updateN2Label(this.extent);
+		}
+		_this.dispatchService.send(DH, {
+			type: 'n2rerender'
+		})
 	}
 	
 	_dispatch(m){
