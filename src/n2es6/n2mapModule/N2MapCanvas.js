@@ -517,12 +517,12 @@ class N2MapCanvas  {
 				var n2IntentSource = new N2SourceWithN2Intent({
 					interaction: _this.interactionSet.selectInteraction,
 					source: clusterSource,
-					dispatchService: _this.dispatchService,
-					overlaps: false
+					dispatchService: _this.dispatchService
 				});
 				var vectorLayer = new VectorLayer({
 					title: "CouchDb",
 					renderMode : 'image',
+					declutter : true,
 					source: n2IntentSource,
 					style: StyleFn,
 					renderOrder: function(feature1, feature2){
@@ -623,10 +623,15 @@ class N2MapCanvas  {
 				symbols[name] = value;
 			},feature);
 
+			if (typeof f._cached_style !== 'undefined'){
+				if (typeof f._style_change !== 'undefined' && ! f._style_change ) {
+					return f._cached_style;
+				}
+			}
 			let n2mapStyles = _this.n2MapStyles;
 			let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols, 
 					feature.n2_geometry);
-
+			f._cached_style = innerStyle;
 			return innerStyle;
 		}
 	}

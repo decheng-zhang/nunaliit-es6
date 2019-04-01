@@ -76,13 +76,9 @@ class N2SourceWithN2Intent extends VectorSource {
 		}
 		//-------------------------
 		listen(this.source, EventType.CHANGE, this.refresh, this);
-		
-		
-		this.interaction_.on( "hover",  this.onHover.bind(this));
-		//this.interaction_.setHoverCallback(this.onHover.bind(this));
-		this.interaction_.on( "clicked",  this.onClicked.bind(this));
-		//this.interaction_.on( "focus",  this.onFocus.bind(this));
-		//this.interaction_.on( "find",  this.onFind.bind(this));
+		listen(this.interaction_,  "hover",  this.onHover, this);
+		listen(this.interaction_,  "clicked",  this.onClicked, this);
+
 
 		
 		var _this = this;
@@ -127,10 +123,6 @@ class N2SourceWithN2Intent extends VectorSource {
 		//TODO There should be a straightforward way to create popup
 		//this._hoverFeaturePopup(selected, layer);
 
-		//console.log("Rec: hovered feature: " + (evt.selected? evt.selected.ol_uid : null) +
-		//	"dehovered: " + (evt.deselected ? evt.deselected.ol_uid: null));	
-		//this.updateN2Label();
-		//this.changed();
 		return false;
 	}
 	//clear up for hover
@@ -409,8 +401,6 @@ class N2SourceWithN2Intent extends VectorSource {
 			this._dispatch({type: 'userUnselect',
 				docId: this.clickedInfo.selectedId
 				});
-			//this.updateN2Label();
-			//this.changed();
 			return false;
 		}
 		
@@ -426,9 +416,6 @@ class N2SourceWithN2Intent extends VectorSource {
 			this._dispatch({type: 'userUnselect',
 							docId: selected.fid
 							});
-			//selected.changed();
-			//this.updateN2Label();
-			//this.changed();
 			return false;
 		} else if ( selected 
 				&& selected.fid ) {
@@ -439,14 +426,10 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.clickedInfo.selectedId = selected.fid;
 			
 			selected.isClicked = true;
-			
-			//selected.changed();
 			if( this.interaction_.onStartClick ) {
 				this.interaction_.onStartClick(selected);
 			};
 		}
-		//this.updateN2Label();
-		//this.changed();
 		return true;
 	}
 	//clear up for click
@@ -459,7 +442,6 @@ class N2SourceWithN2Intent extends VectorSource {
 					this.clickedInfo.fids = {};
 					feature.isClicked = false;
 					feature.n2SelectIntent = null;
-					//feature.changed();
 				}
 			}
 		}
@@ -581,9 +563,6 @@ class N2SourceWithN2Intent extends VectorSource {
 				this.clickedInfo.features.push(feature);
 
 				feature.isClicked = true;
-//				if (feature){
-//					feature.changed();
-//				}
 			};
 		};
 	}
@@ -612,9 +591,6 @@ class N2SourceWithN2Intent extends VectorSource {
 				if( opts.intent ){
 					f.n2SelectIntent = opts.intent;
 				};
-//				if (f){
-//					f.changed();
-//				}
 			};
 		};
 	}
@@ -668,9 +644,10 @@ class N2SourceWithN2Intent extends VectorSource {
 	refresh() {
 		
 		this.clear();
-		this.updateN2Label(this.extent);
+
+		this.updateN2Label();
+	
 		this.addFeatures(this.features_);
-		//super.refresh();
 		
 		
 	}
@@ -784,6 +761,7 @@ class N2SourceWithN2Intent extends VectorSource {
 				this._startFocus(m.docIds);
 			};
 
+
 		} else if( 'focusOff' === type ) {
 			this._endFocus();
 
@@ -892,12 +870,14 @@ class N2SourceWithN2Intent extends VectorSource {
 			//TODO just a work around.Not for production.
 			m.isAvailable = true;
 		}
-		if (this.extent) {
-			this.updateN2Label(this.extent);
-		}
+		
+		this.updateN2Label();
+		
 		_this.dispatchService.send(DH, {
 			type: 'n2rerender'
 		})
+		
+		
 	}
 	
 	_dispatch(m){

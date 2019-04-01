@@ -8,6 +8,7 @@
     "es-hash": "^1.0.4",
     "fs": "0.0.1-security",
     "imports-loader": "^0.8.0",
+    "lru-cache": "^5.1.1",
     "npm-watch": "^0.6.0",
     "ol": "^5.3.0",
     "ol-ext": "^3.1.0",
