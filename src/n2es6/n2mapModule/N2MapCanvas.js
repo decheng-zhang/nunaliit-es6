@@ -9,9 +9,13 @@ import {default as LayerInfo} from './N2LayerInfo';
 import {default as N2MapStyles} from './N2MapStyles.js';
 import {default as customPointStyle} from './N2CustomPointStyle.js';
 import {Fill, RegularShape, Stroke, Style, Text} from 'ol/style.js';
+import {default as Photo} from'ol-ext/style/Photo';
 import {createDefaultStyle} from 'ol/style/Style.js'
 
+
+import GeoJSON from 'ol/format/GeoJSON';
 import {default as ImageSource} from 'ol/source/Image.js';
+import {default as VectorSource } from 'ol/source/Vector.js';
 import {default as N2Select} from './N2Select.js';
 import {default as N2SourceWithN2Intent} from './N2SourceWithN2Intent.js';
 
@@ -32,6 +36,9 @@ import {click as clickCondition} from 'ol/events/condition.js';
 import mouseWheelZoom from 'ol/interaction/MouseWheelZoom.js';
 import {defaults as defaultsInteractionSet} from 'ol/interaction.js';
 
+
+import {unByKey} from 'ol/Observable';
+
 import {default as DrawInteraction} from 'ol/interaction/Draw.js';
 import Stamen from 'ol/source/Stamen.js';
 import OSM from 'ol/source/OSM';
@@ -40,8 +47,8 @@ import LayerSwitcher from 'ol-layerswitcher';
 import 'ol-ext/dist/ol-ext.css';
 import Bar from 'ol-ext/control/Bar';
 import Toggle from 'ol-ext/control/Toggle';
-
-
+import Timeline from 'ol-ext/control/Timeline';
+//import timelineData from '!json-loader!../../data/fond_guerre.geojson';
 
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
 var DH = 'n2.canvasMap';
@@ -134,7 +141,7 @@ class N2MapCanvas  {
 				this.showService = config.directory.showService;
 			};
 		};
-		
+
 		this.sources = [];
 
 		this.overlayInfos = [];
@@ -180,8 +187,8 @@ class N2MapCanvas  {
 
 		this._drawMap();
 		opts.onSuccess();
-		
-		
+
+
 	}
 
 	/**
@@ -362,7 +369,53 @@ class N2MapCanvas  {
 //		------------------------------
 //		------------------------------ create and add layers
 		this.overlayLayers = this._genOverlayMapLayers(this.sources);
-		this.mapLayers = this._genBackgroundMapLayers(this.bgSources);	
+		this.mapLayers = this._genBackgroundMapLayers(this.bgSources);
+
+		var timelineCache = {};
+		  function style(select){
+		    return function(f) {
+		      var style = timelineCache[f.get('img')+'-'+select];
+		      if (!style) {
+		        var img = new Photo({
+		          src: f.get('img'),
+		          radius: select ? 20:15,
+		          shadow: true,
+		          stroke: new Stroke({
+		            width: 4,
+		            color: select ? '#fff':'#fafafa'
+		          }),
+		          onload: function() { f.changed(); }
+		        })
+		        style = timelineCache[f.get('img')+'-'+select] = new Style({
+		          image: img
+		        })
+		      }
+		      return style;
+		    }
+		  };
+
+		  var vectorSource = new VectorSource({
+			    url: '../../data/fond_guerre.geojson',
+			    projection: 'EPSG:3857',
+			    format: new GeoJSON(),
+					attributions: [ "&copy; <a href='https://data.culture.gouv.fr/explore/dataset/fonds-de-la-guerre-14-18-extrait-de-la-base-memoire'>data.culture.gouv.fr</a>" ],
+			    logo:"https://www.data.gouv.fr/s/avatars/37/e56718abd4465985ddde68b33be1ef.jpg"
+			  });
+			  var listenerKey = vectorSource.on('change', function(e) {
+			    if (vectorSource.getState() == 'ready') {
+			      unByKey(listenerKey);
+			      customTimeline.refresh();
+			    }
+			  });
+			  var timelineLyr = new VectorLayer({
+			    name: '1914-18',
+			    preview: "http://www.culture.gouv.fr/Wave/image/memoire/2445/sap40_z0004141_v.jpg",
+			    source: vectorSource,
+			    style: style()
+			  });
+		this.overlayLayers.push(timelineLyr);
+
+
 		/**
 		 * Two Groups : Overlay and Background
 		 */
@@ -377,14 +430,63 @@ class N2MapCanvas  {
 
 
 		customMap.set("layergroup",
-				new LayerGroup({layers: [bgGroup, overlayGroup]}) 
+				new LayerGroup({layers: [bgGroup, overlayGroup]})
 		);
 
-		
+
 		var customLayerSwitcher = new LayerSwitcher({
 					tipLabel: 'Legend' // Optional label for button
 				});
 		customMap.addControl(customLayerSwitcher);
+
+		var customTimeline = new Timeline({
+		    className: 'ol-zoomhover',
+		    source: vectorSource,
+		    graduation: 'day', // 'month'
+		    zoomButton: true,
+		    getHTML: function(f){
+		      return '<img src="'+f.get('img')+'"/> '+(f.get('text')||'');
+		    },
+		    getFeatureDate: function(f) {
+		      return f.get('date');
+		    },
+		    endFeatureDate: function(f) {
+		      var d = f.get('endDate');
+		      // Create end date
+		      if (!d) {
+		        d = new Date (f.get('date'));
+		        d = new Date( d.getTime() + (5 + 10*Math.random())*10*24*60*60*1000);
+		        f.set('endDate', d);
+		      }
+		      return d;
+		    }
+		  });
+
+
+		customMap.addControl(customTimeline);
+		customTimeline.on('select', function(e){
+			    // Center map on feature
+			customMap.getView().animate({
+			      center: e.feature.getGeometry().getCoordinates(),
+			      zoom: 10
+			    });
+			    // Center time line on feature
+			customTimeline.setDate(e.feature);
+			    // Select feature on the map
+			    //select.getFeatures().clear();
+			    //select.getFeatures().push(e.feature);
+			  });
+			  // Collapse the line
+		customTimeline.on('collapse', function(e) {
+			    if (e.collapsed) $(_this.canvasId).addClass('noimg')
+			    else $(_this.canvasId).removeClass('noimg')
+			  });
+			  // >croll the line
+		customTimeline.on('scroll', function(e){
+			    $('.options .date').text(e.date.toLocaleDateString());
+			  });
+
+
 
 
 		var mainbar = new Bar();
@@ -410,7 +512,7 @@ class N2MapCanvas  {
 		this.interactionSet.selectInteraction.on("clicked", (function(e) {
 			if (e.selected) {
 				this._retrivingDocsAndSendSelectedEvent(e.selected);
-			}	
+			}
 		}).bind(this)
 
 		);
@@ -540,7 +642,7 @@ class N2MapCanvas  {
 		function StyleFn(feature, resolution){
 
 			var f = feature;
-			
+
 //			if(f.getGeometry().getType() === "Point"){
 //				if (!DONETESTCACHE[f.fid]){
 //				var ldata =[];
@@ -552,12 +654,12 @@ class N2MapCanvas  {
 //					nb += n;
 //				}
 //				let thisradius = nb;
-//				
-//				
-//				
+//
+//
+//
 //				let thisStyle = new Style({
 //					image: new customPointStyle({
-//						type: "treering", 
+//						type: "treering",
 //						radius : thisradius,
 //						data: ldata,
 //						animation: false,
@@ -573,7 +675,7 @@ class N2MapCanvas  {
 //				return DONETESTCACHE[f.fid];
 //			}
 //			}
-			
+
 			for(var fnName in featureStyleFunctions){
 				f[fnName] = featureStyleFunctions[fnName];
 			};
@@ -598,7 +700,7 @@ class N2MapCanvas  {
 
 			//Deal with n2_doc tag
 			var data = f.data;
-			if (f 
+			if (f
 					&& f.cluster
 					&& f.cluster.length === 1) {
 				data = f.cluster[0].data;
@@ -629,7 +731,7 @@ class N2MapCanvas  {
 				}
 			}
 			let n2mapStyles = _this.n2MapStyles;
-			let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols, 
+			let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols,
 					feature.n2_geometry);
 			f._cached_style = innerStyle;
 			return innerStyle;
@@ -782,7 +884,7 @@ class N2MapCanvas  {
 				targetCenter = transformFn([x, y]);
 			}
 
-			let extent =  this._computeFullBoundingBox(m.doc, 'EPSG:4326','EPSG:3857');	
+			let extent =  this._computeFullBoundingBox(m.doc, 'EPSG:4326','EPSG:3857');
 
 
 
@@ -810,11 +912,11 @@ class N2MapCanvas  {
 			if (_this.n2Map){
 				_this.overlayLayers.forEach(function(overlayLayer){
 						overlayLayer.changed();
-					
+
 				});
 			}
 		}
-		
+
 	}
 
 	/**

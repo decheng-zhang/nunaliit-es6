@@ -11,6 +11,13 @@ module.exports = {
 		    {loader: 'style-loader'},
 		    {loader: 'css-loader'}
 		]
+	    },{
+	    	test: /\.geojson$/,
+	    	use: [
+	    		{
+	    		loader: 'json-loader'
+	    		}
+	    	]
 	    }
 	]
     },
