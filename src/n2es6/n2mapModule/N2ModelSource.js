@@ -128,7 +128,7 @@ class N2ModelSource extends Vector {
 			});
 		};
 		//if ( ! this.loading ){
-		//this._reloadAllFeatures();
+		this._reloadAllFeatures();
 		//}
 	}
 	

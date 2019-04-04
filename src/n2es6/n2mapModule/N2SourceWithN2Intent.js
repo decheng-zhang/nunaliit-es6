@@ -10,6 +10,26 @@ import EventType from 'ol/events/EventType.js';
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
 var DH = 'n2.canvasMap';
 
+
+
+
+var featureStyleFunctions = {
+		getDocuments: function(){
+			// this is the feature
+
+			var documents = [];
+
+			if( $n2.isArray(this.cluster) ) {
+				this.cluster.forEach(function(f){
+					documents.push(f.data);
+				});
+			} else {
+				documents.push(this.data);
+			};
+
+			return documents;
+		}
+};
 /**
  * @classdesc
  * @extends VectorSource
@@ -669,6 +689,11 @@ class N2SourceWithN2Intent extends VectorSource {
 		if( features && features.length > 0 ) {
 			
 				for(let f of features){
+					
+					for(var fnName in featureStyleFunctions){
+						f[fnName] = featureStyleFunctions[fnName];
+					};
+					
 					if( this.clickedInfo.fids[f.fid] ){
 						var featureInfo = this.clickedInfo.fids[f.fid];
 

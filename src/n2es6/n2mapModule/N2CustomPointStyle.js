@@ -51,6 +51,7 @@ class N2CustomPointStyle extends RegularShape{
 		this.stroke_ = options.stroke;
 		this.radius_ = options.radius || 20;
 		this.donutratio_ = options.donutRatio || 0.5;
+		this.donutScaleFactor = options.donutScaleFactor || 1.0 ;
 		this.type_ = options.type;
 		this.offset_ = [options.offsetX ? options.offsetX : 0, options.offsetY ? options.offsetY : 0];
 		this.animation_ = (typeof(options.animation) == 'number') ? { animate:true, step:options.animation } : this.animation_ = { animate:false, step:1 };
@@ -115,7 +116,35 @@ class N2CustomPointStyle extends RegularShape{
 		this.renderChart_();
 	}
 
+	_getRings (){
+		var rings = [];
+		var currentRing = null;
 
+		for(var i=0,e=this.data_.length; i<e; ++i){
+			var entry = this.data_[i];
+			
+			var duration = entry.duration;
+			var type = entry.type;
+			
+			if( duration > 0 ) {
+				if( null != currentRing 
+				 && currentRing.type !== type ) {
+					currentRing = null;
+				};
+				if( null == currentRing ) {
+					currentRing = {
+						typeName: type.name
+						,type: type
+						,duration: 0
+					};
+					rings.push(currentRing);
+				};
+				currentRing.duration = currentRing.duration + duration;
+			};
+		};
+
+		return rings;
+	}
 	/** @private
 	*/
 	renderChart_ (){	
@@ -152,27 +181,56 @@ class N2CustomPointStyle extends RegularShape{
 	//	Draw pie
 		switch (this.type_){
 		case "treering":{
-			var a, a0 = Math.PI * (step-1.5);
-			var r = 0;
+
 			c = canvas.width/2;
 			context.strokeStyle = strokeStyle;
 			context.lineWidth = strokeWidth;
 			context.save();
-			context.beginPath();
+			//context.beginPath();
 			context.rect ( 0,0,2*c,2*c );
-			for (i=0; i<this.data_.length; i++)	{
-
-					context.beginPath();
-					//context.moveTo(c,c);
-					context.strokeStyle = this.colors_[i%this.colors_.length];
-					r = r + this.radius_*this.data_[i]/sum ;
-					context.arc ( c, c, r, 0,  2*Math.PI);
-					context.closePath();
-					context.stroke();
-					
-				
+			let rings = this._getRings();
+			let currRadius = this.startupOffset || 10;
+			
+			for (let i = 0, e= rings.length; i<e; ++i){
+				let ring = rings[i];
+				let dur = ring.duration;
+				let effectiveRadiusIncre = Math.floor(
+						(1 * Math.sqrt( dur / 60 ) * this.donutScaleFactor * 7.7)
+					);
+				var type = ring.type;
+				let region = new Path2D();
+				region.arc(c, c, currRadius, 0, 2* Math.PI);
+				currRadius += effectiveRadiusIncre;
+				region.arc(c, c, currRadius, 2* Math.PI, 0);
+				region.closePath();
+				//context.lineWidth = 6;
+				//context.stroke();
+				context.fillStyle = this.colors_[i%this.colors_.length]
+				context.globalAlpha = 0.1 + i * 0.1;
+				context.fill(region, 'evenodd');
+				context.restore();
 			}
-			context.restore();
+//			var a, a0 = Math.PI * (step-1.5);
+//			var r = 0;
+//			c = canvas.width/2;
+//			context.strokeStyle = strokeStyle;
+//			context.lineWidth = strokeWidth;
+//			context.save();
+//			context.beginPath();
+//			context.rect ( 0,0,2*c,2*c );
+//			for (i=0; i<this.data_.length; i++)	{
+//
+//					context.beginPath();
+//					//context.moveTo(c,c);
+//					context.strokeStyle = this.colors_[i%this.colors_.length];
+//					r = r + this.radius_*this.data_[i]/sum ;
+//					context.arc ( c, c, r, 0,  2*Math.PI);
+//					context.closePath();
+//					context.stroke();
+//					
+//				
+//			}
+//			context.restore();
 			break;
 		}
 			case "donut":

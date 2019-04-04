@@ -90,23 +90,7 @@ const stringStyles = {
 		"label": true
 };
 
-var featureStyleFunctions = {
-		getDocuments: function(){
-			// this is the feature
 
-			var documents = [];
-
-			if( $n2.isArray(this.cluster) ) {
-				this.cluster.forEach(function(f){
-					documents.push(f.data);
-				});
-			} else {
-				documents.push(this.data);
-			};
-
-			return documents;
-		}
-};
 
 /**
  * @classdesc
@@ -181,8 +165,8 @@ class N2MapCanvas  {
 		$n2.log(this._classname,this);
 
 		this.bgSources = opts.backgrounds || [];
-
-
+		this.coordinates = opts.coordinates || null;
+		
 		this.styleRules = $n2.styleRule.loadRulesFromObject(opts.styles);
 
 		this._drawMap();
@@ -282,6 +266,7 @@ class N2MapCanvas  {
 
 
 	_mapBusyStatus(delta){
+		
 		//TODO new version of progressControl
 //		var previous = this.mapBusyCount;
 //		this.mapBusyCount += delta;
@@ -314,30 +299,6 @@ class N2MapCanvas  {
 			zoom: 6
 		});
 		this.n2View = olView;
-
-
-//		olView.on('change:resolution',function(event){
-//		var olView = event.target;
-//		if( olView ){
-//		var res = olView.getResolution();
-//		var oldres = _this.resolution;
-//		var proj = olView.getProjection();
-//		if (typeof _this.resolution === 'undefined'
-//		|| Math.abs((res - oldres)/oldres) > 0.01){
-//		var extent = olView.calculateExtent();
-//		//$n2.log('resolution',res,proj);
-//		_this.resolution = res;
-//		_this.sources.forEach(function(source){
-//		source.onChangedResolution(res,proj,extent);
-//		});
-//		}
-
-//		};
-//		return true;
-//		});
-
-
-
 		var customMap = new Map({
 			interactions: defaultsInteractionSet({mouseWheelZoom : false}).extend([
 				new mouseWheelZoom({
@@ -350,6 +311,22 @@ class N2MapCanvas  {
 
 		});
 		this.n2Map = customMap;
+		
+		//Config the initial bound on the ol5 map
+		if (this.coordinates && !this.coordinates.autoInitialBounds) {
+			let bbox = this.coordinates.initialBounds;
+			let boundInProj = transformExtent(bbox,
+					new Projection({code: 'EPSG:4326'}),
+					new Projection({code: 'EPSG:3857'})
+			);
+			customMap.once('postrender', function(evt){
+				customMap.getView().fit(boundInProj, {size:customMap.getSize()});
+			});
+		}
+		//=======================================
+		
+		//Listening on the map move and resolution changes.
+		//Everytime a change is detected. The N2CouchDbSource/N2ModelSource will be update
 		customMap.on('movestart', onMoveStart);
 
 		function onMoveStart(evt){
@@ -363,7 +340,9 @@ class N2MapCanvas  {
 				});
 			})
 		}
-
+		//========================================
+		
+		
 		this.interactionSet.selectInteraction = new N2Select({map: customMap});
 
 //		------------------------------
@@ -542,17 +521,6 @@ class N2MapCanvas  {
 		//_changeToImageRender();
 	}
 
-	_changeToImageRender(){
-		let neutralSource = this.overlayLayers[0].getSource();
-		let postLayer = new ol.layer.ImageLayer({
-			source: new ol.source.ImageSource({
-				source: neutralSource
-			})
-		})
-
-		this.overlayLayers = [postLayer];
-
-	}
 
 	_retrivingDocsAndSendSelectedEvent(features) {
 
@@ -609,7 +577,7 @@ class N2MapCanvas  {
 
 		var fg = [];
 		var _this = this;
-		var DONETESTCACHE = {};
+		
 		if( Sources) {
 			Sources.forEach(function(source){
 
@@ -639,46 +607,56 @@ class N2MapCanvas  {
 
 		}
 		return (fg);
+	
 		function StyleFn(feature, resolution){
 
+			var DONETESTCACHE = {};
+			var RANDOMNAME = ["EU", "NA", "ASIA", "AF"];
+			var RANDOMCOLOR = ["#ff0","#0ff","#0f0","#f0f","#f00","#00f"];
 			var f = feature;
 
-//			if(f.getGeometry().getType() === "Point"){
-//				if (!DONETESTCACHE[f.fid]){
-//				var ldata =[];
-//				let e = Math.round(10*Math.random());
-//				let nb = 0;
-//				for(var k =0;k<e;k++){
-//					let n = Math.round(10*Math.random());
-//					ldata.push(n);
-//					nb += n;
-//				}
-//				let thisradius = nb;
-//
-//
-//
-//				let thisStyle = new Style({
-//					image: new customPointStyle({
-//						type: "treering",
-//						radius : thisradius,
-//						data: ldata,
-//						animation: false,
-//						stroke: new Stroke({
-//							color: "#000",
-//							width: 2
-//						})
-//					})
-//				})
-//				DONETESTCACHE[f.fid] = thisStyle;
-//				return [thisStyle];
-//			} else {
-//				return DONETESTCACHE[f.fid];
-//			}
-//			}
+			if(f.getGeometry().getType() === "Point"){
+				
+				var ldata =[];
+				let e = Math.round(10*Math.random());
+				let thisradius = 0;
+				for(var k =0;k<e;k++){
+					let dur = Math.round(10*Math.random());
+					let tyr = {
+							name: RANDOMNAME[k % 4],
+							opacity: Math.random(),
+							strokeColor: RANDOMCOLOR[k % 6]
+					};
+					let entry = {
+							duration : dur,
+							type : tyr
+					};
+					ldata.push(entry);
+					thisradius += entry.duration;
+				}
+				
 
-			for(var fnName in featureStyleFunctions){
-				f[fnName] = featureStyleFunctions[fnName];
-			};
+
+				let donutScaleFactor = 5;
+				let thisStyle = new Style({
+					image: new customPointStyle({
+						type: "treering",
+						radius : thisradius* donutScaleFactor,
+						data: ldata,
+						donutScaleFactor: donutScaleFactor,
+						animation: false,
+						stroke: new Stroke({
+							color: "#000",
+							width: 2
+						})
+					})
+				})
+	
+				return [thisStyle];
+
+			}
+
+
 			var geomType = f.getGeometry()._n2Type;
 			if ( !geomType ) {
 				if ( f
@@ -725,15 +703,10 @@ class N2MapCanvas  {
 				symbols[name] = value;
 			},feature);
 
-			if (typeof f._cached_style !== 'undefined'){
-				if (typeof f._style_change !== 'undefined' && ! f._style_change ) {
-					return f._cached_style;
-				}
-			}
+			
 			let n2mapStyles = _this.n2MapStyles;
 			let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols,
 					feature.n2_geometry);
-			f._cached_style = innerStyle;
 			return innerStyle;
 		}
 	}
