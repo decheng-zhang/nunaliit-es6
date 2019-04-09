@@ -91,6 +91,10 @@ function generateExports(symbols) {
       nsdefs.push(`${ns[i]} = {};`);
     }
   }
+  /**
+   * If ever need to change the name of this nunaliit-es6 javascript module
+   * change the two (n2es6)s below, and every first line of js files in the ../src/folder
+   */
   blocks = Object.keys(imports).concat(
     '\nvar n2es6 = {};\n', nsdefs.sort()).concat(blocks.sort());
   blocks.push('', 'export default n2es6;');

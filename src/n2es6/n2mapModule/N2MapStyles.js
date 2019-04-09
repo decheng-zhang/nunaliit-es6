@@ -73,7 +73,7 @@ class N2MapStyles {
 	*/
 	constructor(){
 
-		this.lrucache = new N2LRU(5000);
+		//this.lrucache = new N2LRU(5000);
 
 	}
 	/**
@@ -82,14 +82,15 @@ class N2MapStyles {
 	* @return {import("ol/style/Style.js").default} produce a ol5 Style object
 	*/
  	loadStyleFromN2Symbolizer(symbols , geometryType){
- 		let key = Object.assign({}, symbols,{_n2type: geometryType});
- 		let candidate = this.lrucache.get(hash(key));
- 		if (candidate){
- 			return candidate;
- 		}
- 		candidate =  this.getOl5StyleObjFromSymbol(symbols, geometryType);	
-		this.lrucache.set(key, candidate );
-		return [candidate];
+ 		var typeLabel = {_n2type: geometryType};
+ 		//let key = Object.assign({}, symbols, typeLabel);
+ 		//let candidate = this.lrucache.get(hash(key));
+ 		//if (candidate){
+ 		//	return candidate;
+ 		//}
+ 		let candidate =  this.getOl5StyleObjFromSymbol(symbols, geometryType);	
+		//this.lrucache.set(key, candidate );
+		return candidate;
 	}
 	/**
 	* [getOl5StyleObjFromSymbol return the ol5 stylemap object from nunaliit2 internal style tags
@@ -97,6 +98,20 @@ class N2MapStyles {
 	* @return {import("ol/style/Style.js").default}
 	*/
 	getOl5StyleObjFromSymbol(symbols, geometryType) {
+		var rstStyleSet = [];
+		if ("v2_style" in symbols){
+			for (var symbol in symbols){
+				if (symbol === "v2_style"){
+					continue;
+				}
+				let imageStyle = this.getOl5StyleObjFromV2Style(symbol, symbols[symbol]);
+				let rstStyle = new Style({image: imageStyle});
+				rstStyleSet.push(rstStyle);
+			}
+			return rstStyleSet;
+		}
+		
+		
 		if ( !StyleNamesMapForAll[geometryType.toLowerCase()] ){
 			throw new Error("N2MapStyles: this geometry type is not supported yet");
 		}
@@ -114,7 +129,15 @@ class N2MapStyles {
 			return this.getOl5StyleObjFromStyleName(internalOl5StyleNames);
 		}
 	}
+	getOl5StyleObjFromV2Style(symbol, value){
 		
+		if(symbol){
+			let thisStyle = $n2.utils.getInstance(symbol, value);
+			return thisStyle;
+		}
+		return null;
+		
+	}
 	getOl5StyleObjFromStyleName_point(n2InternalStyle){
 		var handle = {}
 		var _this = this;

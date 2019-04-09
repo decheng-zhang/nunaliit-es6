@@ -4,6 +4,7 @@
 
 import RegularShape from 'ol/style/RegularShape'
 import Fill from 'ol/style/Fill'
+import Stroke from 'ol/style/Stroke'
 import {asString as ol_color_asString} from 'ol/color'
 
 
@@ -36,22 +37,31 @@ const colors =
  */
 class N2CustomPointStyle extends RegularShape{
 	constructor(opt_options) {	
-		var options = opt_options || {};
-
-		var strokeWidth = 0;
-		if (opt_options.stroke) strokeWidth = opt_options.stroke.getWidth();
+		var options = $n2.extend({
+			radius : 0,
+			donutScaleFactor: 1
+		}, opt_options)
+	
+		
+		options.data.forEach(function(d){
+			options.radius +=d.duration;
+		})
+		options.radius *= 2* options.donutScaleFactor;
 		super (
-				{	radius: options.radius + strokeWidth, 
+				{	radius: options.radius , 
 					fill: new Fill({color: [0,0,0]}),
 					rotation: options.rotation,
 					snapToPixel: options.snapToPixel
 				});
 		if (options.scale) this.setScale(options.scale);
 
-		this.stroke_ = options.stroke;
-		this.radius_ = options.radius || 20;
+		this.stroke_ = options.stroke || new Stroke({
+													color: "#000",
+													width: 2
+													});
+		
 		this.donutratio_ = options.donutRatio || 0.5;
-		this.donutScaleFactor = options.donutScaleFactor || 1.0 ;
+		this.donutScaleFactor = options.donutScaleFactor ;
 		this.type_ = options.type;
 		this.offset_ = [options.offsetX ? options.offsetX : 0, options.offsetY ? options.offsetY : 0];
 		this.animation_ = (typeof(options.animation) == 'number') ? { animate:true, step:options.animation } : this.animation_ = { animate:false, step:1 };
@@ -63,7 +73,7 @@ class N2CustomPointStyle extends RegularShape{
 		}
 		else 
 		{	this.colors_ = colors[options.colors];
-		if(!this.colors_) this.colors_ = colors.classic;
+			if (!this.colors_) this.colors_ = colors.classic;
 		}
 
 		this.renderChart_();
@@ -180,7 +190,7 @@ class N2CustomPointStyle extends RegularShape{
 	
 	//	Draw pie
 		switch (this.type_){
-		case "treering":{
+		case "treeRing":{
 
 			c = canvas.width/2;
 			context.strokeStyle = strokeStyle;
@@ -205,32 +215,11 @@ class N2CustomPointStyle extends RegularShape{
 				region.closePath();
 				//context.lineWidth = 6;
 				//context.stroke();
-				context.fillStyle = this.colors_[i%this.colors_.length]
-				context.globalAlpha = 0.1 + i * 0.1;
+				context.fillStyle = type.strokeColor
+				context.globalAlpha = type.opacity;
 				context.fill(region, 'evenodd');
 				context.restore();
 			}
-//			var a, a0 = Math.PI * (step-1.5);
-//			var r = 0;
-//			c = canvas.width/2;
-//			context.strokeStyle = strokeStyle;
-//			context.lineWidth = strokeWidth;
-//			context.save();
-//			context.beginPath();
-//			context.rect ( 0,0,2*c,2*c );
-//			for (i=0; i<this.data_.length; i++)	{
-//
-//					context.beginPath();
-//					//context.moveTo(c,c);
-//					context.strokeStyle = this.colors_[i%this.colors_.length];
-//					r = r + this.radius_*this.data_[i]/sum ;
-//					context.arc ( c, c, r, 0,  2*Math.PI);
-//					context.closePath();
-//					context.stroke();
-//					
-//				
-//			}
-//			context.restore();
 			break;
 		}
 			case "donut":

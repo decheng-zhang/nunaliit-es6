@@ -136,7 +136,37 @@ class N2MapCanvas  {
 
 		this.center = undefined;
 		this.resolution = undefined;
-
+		//===============
+		this.mockingDataComplete = 	[  {duration: 10,
+		    type: {name: 'alpha', strokeColor: '#ff0',
+		    	opacity: 0.5}
+		},
+		{duration: 5,
+		    type: {name: 'beta', strokeColor: '#060',
+		    	opacity: 0.7}
+		},
+		{duration: 4,
+		    type: {name: 'charlie', strokeColor: '#b5d',
+		    	opacity: 0.9}
+		}
+		,{duration: 3,
+		    type: {name: 'd', strokeColor: '#666',
+		    	opacity: 0.5}
+		},
+		{duration: 20,
+		    type: {name: 'b', strokeColor: '#3b7',
+		    	opacity: 0.7}
+		},
+		{duration: 8,
+		    type: {name: 'g', strokeColor: '#f64',
+		    	opacity: 0.9}
+		}
+		];
+		this.mockingData = [];
+		this.lastTime = null;
+		this.initialTime = null;
+		this.endIdx = 0;
+		//==============
 
 
 
@@ -160,6 +190,7 @@ class N2MapCanvas  {
 			};
 			this.dispatchService.register(DH,'n2ViewAnimation',f);
 			this.dispatchService.register(DH, 'n2rerender', f);
+			this.dispatchService.register(DH, 'time_interval_change', f);
 		};
 
 		$n2.log(this._classname,this);
@@ -303,7 +334,7 @@ class N2MapCanvas  {
 			interactions: defaultsInteractionSet({mouseWheelZoom : false}).extend([
 				new mouseWheelZoom({
 					duration: 200,
-					constrainResolution: true
+					constrainResolution: false
 				})
 				]),
 				target : this.canvasId,
@@ -592,7 +623,6 @@ class N2MapCanvas  {
 				var vectorLayer = new VectorLayer({
 					title: "CouchDb",
 					renderMode : 'image',
-					declutter : true,
 					source: n2IntentSource,
 					style: StyleFn,
 					renderOrder: function(feature1, feature2){
@@ -615,46 +645,46 @@ class N2MapCanvas  {
 			var RANDOMCOLOR = ["#ff0","#0ff","#0f0","#f0f","#f00","#00f"];
 			var f = feature;
 
-			if(f.getGeometry().getType() === "Point"){
-				
-				var ldata =[];
-				let e = Math.round(10*Math.random());
-				let thisradius = 0;
-				for(var k =0;k<e;k++){
-					let dur = Math.round(10*Math.random());
-					let tyr = {
-							name: RANDOMNAME[k % 4],
-							opacity: Math.random(),
-							strokeColor: RANDOMCOLOR[k % 6]
-					};
-					let entry = {
-							duration : dur,
-							type : tyr
-					};
-					ldata.push(entry);
-					thisradius += entry.duration;
-				}
-				
-
-
-				let donutScaleFactor = 5;
-				let thisStyle = new Style({
-					image: new customPointStyle({
-						type: "treering",
-						radius : thisradius* donutScaleFactor,
-						data: ldata,
-						donutScaleFactor: donutScaleFactor,
-						animation: false,
-						stroke: new Stroke({
-							color: "#000",
-							width: 2
-						})
-					})
-				})
-	
-				return [thisStyle];
-
-			}
+//			if(f.getGeometry().getType() === "Point"){
+//				
+//				var ldata =[];
+//				let e = Math.round(10*Math.random());
+//				let thisradius = 0;
+//				for(var k =0;k<e;k++){
+//					let dur = Math.round(10*Math.random());
+//					let tyr = {
+//							name: RANDOMNAME[k % 4],
+//							opacity: Math.random(),
+//							strokeColor: RANDOMCOLOR[k % 6]
+//					};
+//					let entry = {
+//							duration : dur,
+//							type : tyr
+//					};
+//					ldata.push(entry);
+//					thisradius += entry.duration;
+//				}
+//				
+//
+//
+//				let donutScaleFactor = 5;
+//				let thisStyle = new Style({
+//					image: new customPointStyle({
+//						type: "treeRing",
+//						radius : thisradius* donutScaleFactor,
+//						data: ldata,
+//						donutScaleFactor: donutScaleFactor,
+//						animation: false,
+//						stroke: new Stroke({
+//							color: "#000",
+//							width: 2
+//						})
+//					})
+//				})
+//	
+//				return [thisStyle];
+//
+//			}
 
 
 			var geomType = f.getGeometry()._n2Type;
@@ -684,8 +714,16 @@ class N2MapCanvas  {
 				data = f.cluster[0].data;
 			};
 			f.n2_doc = data;
+			//===================== mocking data
+			if (f.n2_doc.cinedata){
+				f._v2_style_ = {};
+				f.n2_doc.ldata = _this.mockingData;
 
+			}
+			//====================== mocking end
+			
 			//(import $n2.styleRule.js).Style
+
 			let style = _this.styleRules.getStyle(feature);
 
 			let symbolizer = style.getSymbolizer(feature);
@@ -707,6 +745,7 @@ class N2MapCanvas  {
 			let n2mapStyles = _this.n2MapStyles;
 			let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols,
 					feature.n2_geometry);
+			innerStyle = Array.isArray(innerStyle)? innerStyle : [innerStyle];
 			return innerStyle;
 		}
 	}
@@ -888,6 +927,29 @@ class N2MapCanvas  {
 
 				});
 			}
+		} else if ('time_interval_change' === type){
+			let currTime = m.value.min;
+			let incre = 100000000;
+			
+			if (_this.lastTime === null){
+				_this.initialTime = currTime;
+				_this.lastTime = currTime;
+				_this.mockingData = _this.mockingDataComplete.slice(0,1);
+
+			}
+			
+				_this.endIdx = parseInt((currTime - _this.initialTime)/incre);
+				_this.mockingData = _this.mockingDataComplete.slice(0,_this.endIdx);
+	
+				_this.dispatchService.send(DH,{
+					type: 'n2rerender'
+				});
+				
+			
+			_this.lastTime = currTime;
+
+			
+			
 		}
 
 	}
