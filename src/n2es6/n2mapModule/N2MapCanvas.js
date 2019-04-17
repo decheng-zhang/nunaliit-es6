@@ -90,8 +90,6 @@ const stringStyles = {
 		"label": true
 };
 
-
-
 /**
  * @classdesc
  * N2 Map canvas (The playground for ol5 lib update in nunaliit 2)
@@ -166,9 +164,11 @@ class N2MapCanvas  {
 		this.lastTime = null;
 		this.initialTime = null;
 		this.endIdx = 0;
+		
+		var t = new $n2.N2Editor.Base();
 		//==============
 
-
+		
 
 		this.n2View = undefined;
 		this.n2Map = undefined;
@@ -182,7 +182,7 @@ class N2MapCanvas  {
 		};
 		this.currentInteract = null;
 		this._processOverlay(opts.overlays);
-
+		
 		// Register to events
 		if( this.dispatchService ){
 			var f = function(m){
@@ -202,7 +202,7 @@ class N2MapCanvas  {
 
 		this._drawMap();
 		opts.onSuccess();
-
+		
 
 	}
 
@@ -215,81 +215,88 @@ class N2MapCanvas  {
 
 
 		var _this = this;
-		if( $n2.isArray(overlays) ){
-			overlays.forEach( (function(overlay){
+		
+		if( !$n2.isArray(overlays) ){
+			overlays = [overlays];
+		}
+			
+		overlays.forEach( (function(overlay){
 
-				// Generate Array<layerInfo> layerInfos;
-				var layerInfoOptions = overlay;
-				var layerInfo = new LayerInfo(layerInfoOptions);
-				var layerOptions = {
-						name: layerInfo.name
-						,projection: layerInfo.sourceProjection
-						,visibility: layerInfo.visibility
-						,_layerInfo: layerInfo
+			// Generate Array<layerInfo> layerInfos;
+			var layerInfoOptions = overlay;
+			var layerInfo = new LayerInfo(layerInfoOptions);
+			var layerOptions = {
+					name: layerInfo.name
+					,projection: layerInfo.sourceProjection
+					,visibility: layerInfo.visibility
+					,_layerInfo: layerInfo
+					,clustering: overlay.clustering
+			};
+
+			this.overlayInfos.push(layerOptions);
+			//---------------------
+			//---------------------
+			if ('couchdb' === overlay.type) {
+				let sourceModelId = undefined;
+				if( overlay.options
+						&& 'string' === typeof overlay.options.sourceModelId ){
+					sourceModelId = overlay.options.sourceModelId;
+				} else if( overlay.options
+						&& 'string' === typeof overlay.options.layerName ){
+					sourceModelId = overlay.options.layerName;
+				} else {
+					$n2.logError('Map canvas overlay is not named. Will be ignored');
 				};
 
-				this.overlayInfos.push(layerOptions);
-				//---------------------
-				//---------------------
-				if ('couchdb' === overlay.type) {
-					let sourceModelId = undefined;
-					if( overlay.options
-							&& 'string' === typeof overlay.options.sourceModelId ){
-						sourceModelId = overlay.options.sourceModelId;
-					} else if( overlay.options
-							&& 'string' === typeof overlay.options.layerName ){
-						sourceModelId = overlay.options.layerName;
-					} else {
-						$n2.logError('Map canvas overlay is not named. Will be ignored');
-					};
+				if( sourceModelId ){
+					var source = new CouchDbSource({
+						sourceModelId: sourceModelId
+						,dispatchService: this.dispatchService
+						,projCode: 'EPSG:3857'
+					});
+					this.sources.push(source);
+				};
+			} else if ( 'model' === overlay.type ) {
 
-					if( sourceModelId ){
-						var source = new CouchDbSource({
-							sourceModelId: sourceModelId
-							,dispatchService: this.dispatchService
-							,projCode: 'EPSG:3857'
-						});
-						this.sources.push(source);
-					};
-				} else if ( 'model' === overlay.type ) {
-
-					let sourceModelId = undefined;
-					if( overlay.options
-							&& 'string' === typeof overlay.options.sourceModelId ){
-						sourceModelId = overlay.options.sourceModelId;
-					} else if( overlay.options
-							&& 'string' === typeof overlay.options.layerName ){
-						sourceModelId = overlay.options.layerName;
-					} else {
-						$n2.logError('Map canvas overlay is not named. Will be ignored');
-					};
-
-					if( sourceModelId ){
-						var source = new N2ModelSource({
-							sourceModelId: sourceModelId
-							,dispatchService: this.dispatchService
-							,projCode: 'EPSG:3857'
-								,onUpdateCallback : function(state){
-									//_this._modelLayerUpdated(layerOptions, state);
-								}
-						,notifications: {
-							readStart: function(){
-								//_this._mapBusyStatus(1);
-							}
-						,readEnd: function(){
-							//_this._mapBusyStatus(-1);
-						}
-						}
-						});
-						this.sources.push(source);
-					};
-				} else if ('wfs' === overlay.type) {
-					$n2.logError(overlay.type + 'is constructing');
+				let sourceModelId = undefined;
+				if( overlay.options
+						&& 'string' === typeof overlay.options.sourceModelId ){
+					sourceModelId = overlay.options.sourceModelId;
+				} else if( overlay.options
+						&& 'string' === typeof overlay.options.layerName ){
+					sourceModelId = overlay.options.layerName;
 				} else {
-					$n2.logError('Can not handle overlay type: '+overlay.type);
-				}
-			}).bind(this) );
-		};
+					$n2.logError('Map canvas overlay is not named. Will be ignored');
+				};
+
+				if( sourceModelId ){
+					var source = new N2ModelSource({
+						sourceModelId: sourceModelId
+						,dispatchService: this.dispatchService
+						,projCode: 'EPSG:3857'
+							,onUpdateCallback : function(state){
+								//_this._modelLayerUpdated(layerOptions, state);
+							}
+					,notifications: {
+						readStart: function(){
+							//_this._mapBusyStatus(1);
+						}
+						,readEnd: function(){
+						//_this._mapBusyStatus(-1);
+					}
+					}
+					});
+					this.sources.push(source);
+				};
+			} else if ('wfs' === overlay.type) {
+				$n2.logError(overlay.type + 'is constructing');
+				this.sources.push({});
+			} else {
+				$n2.logError('Can not handle overlay type: '+overlay.type);
+				this.sources.push({});
+			}
+		}).bind(this) );
+		
 
 
 
@@ -342,7 +349,7 @@ class N2MapCanvas  {
 
 		});
 		this.n2Map = customMap;
-		
+		this.n2MapStyles.setMap(customMap);
 		//Config the initial bound on the ol5 map
 		if (this.coordinates && !this.coordinates.autoInitialBounds) {
 			let bbox = this.coordinates.initialBounds;
@@ -423,7 +430,7 @@ class N2MapCanvas  {
 			    source: vectorSource,
 			    style: style()
 			  });
-		this.overlayLayers.push(timelineLyr);
+		//this.overlayLayers.push(timelineLyr);
 
 
 		/**
@@ -610,20 +617,24 @@ class N2MapCanvas  {
 		var _this = this;
 		
 		if( Sources) {
-			Sources.forEach(function(source){
-
-				var clusterSource = new n2es6.ol5support.N2Cluster({
-					source: source
-				});
-				var n2IntentSource = new N2SourceWithN2Intent({
+			for (var i = 0, e = Sources.length; i < e; i++){
+				var overlayInfo = _this.overlayInfos[i];
+				var alphasource = Sources[i];
+				var betaSource = alphasource;
+				if ( overlayInfo.clustering ){
+					var clsOpt = Object.assign({}, overlayInfo.clustering
+							,{source: alphasource});
+					betaSource = new n2es6.ol5support.N2Cluster(clsOpt);
+				}
+				var charlieSource = new N2SourceWithN2Intent({
 					interaction: _this.interactionSet.selectInteraction,
-					source: clusterSource,
+					source: betaSource,
 					dispatchService: _this.dispatchService
 				});
 				var vectorLayer = new VectorLayer({
 					title: "CouchDb",
 					renderMode : 'image',
-					source: n2IntentSource,
+					source: charlieSource,
 					style: StyleFn,
 					renderOrder: function(feature1, feature2){
 						return $n2.olUtils.ol5FeatureSorting(feature1, feature2);
@@ -633,7 +644,7 @@ class N2MapCanvas  {
 //				var layerStyleMap = createStyleMap(layerOptions._layerInfo);
 //				vectorLayer.set('styleMap', layerStyleMap);
 				fg.push(vectorLayer);
-			});
+			};
 
 		}
 		return (fg);
@@ -713,11 +724,18 @@ class N2MapCanvas  {
 					&& f.cluster.length === 1) {
 				data = f.cluster[0].data;
 			};
+			
+			
+			//is a cluster
+			if (!data) {
+				data = {clusterData: true};
+ 			}
+			//
 			f.n2_doc = data;
 			//===================== mocking data
 			if (f.n2_doc.cinedata){
 				f._v2_style_ = {};
-				f.n2_doc.ldata = _this.mockingData;
+				f.n2_doc.ldata = _this.getMockingData();
 
 			}
 			//====================== mocking end
@@ -744,10 +762,19 @@ class N2MapCanvas  {
 			
 			let n2mapStyles = _this.n2MapStyles;
 			let innerStyle = n2mapStyles.loadStyleFromN2Symbolizer(symbols,
-					feature.n2_geometry);
+					feature);
 			innerStyle = Array.isArray(innerStyle)? innerStyle : [innerStyle];
 			return innerStyle;
 		}
+	}
+
+	getMockingData(){
+		if (typeof this.mock_idx === 'undefined') {
+			this.mock_idx = -1;
+		}
+		this.mock_idx ++;
+		var len = this.mockingDataComplete.length;
+		return this.mockingDataComplete[this.mock_idx % len];
 	}
 	_genBackgroundMapLayers(bgSources) {
 		var _this = this;
