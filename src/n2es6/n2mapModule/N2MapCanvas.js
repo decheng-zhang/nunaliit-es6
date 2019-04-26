@@ -733,11 +733,11 @@ class N2MapCanvas  {
 			//
 			f.n2_doc = data;
 			//===================== mocking data
-			if (f.n2_doc.cinedata){
-				f._v2_style_ = {};
-				f.n2_doc.ldata = _this.getMockingData();
-
-			}
+//			if (f.n2_doc.cinedata){
+//				f._v2_style_ = {};
+//				f.n2_doc.ldata = _this.getMockingData();
+//
+//			}
 			//====================== mocking end
 			
 			//(import $n2.styleRule.js).Style
@@ -954,30 +954,31 @@ class N2MapCanvas  {
 
 				});
 			}
-		} else if ('time_interval_change' === type){
-			let currTime = m.value.min;
-			let incre = 100000000;
-			
-			if (_this.lastTime === null){
-				_this.initialTime = currTime;
-				_this.lastTime = currTime;
-				_this.mockingData = _this.mockingDataComplete.slice(0,1);
-
-			}
-			
-				_this.endIdx = parseInt((currTime - _this.initialTime)/incre);
-				_this.mockingData = _this.mockingDataComplete.slice(0,_this.endIdx);
-	
-				_this.dispatchService.send(DH,{
-					type: 'n2rerender'
-				});
-				
-			
-			_this.lastTime = currTime;
-
-			
-			
-		}
+		} 
+//		else if ('time_interval_change' === type){
+//			let currTime = m.value.min;
+//			let incre = 100000000;
+//			
+//			if (_this.lastTime === null){
+//				_this.initialTime = currTime;
+//				_this.lastTime = currTime;
+//				_this.mockingData = _this.mockingDataComplete.slice(0,1);
+//
+//			}
+//			
+//				_this.endIdx = parseInt((currTime - _this.initialTime)/incre);
+//				_this.mockingData = _this.mockingDataComplete.slice(0,_this.endIdx);
+//	
+//				_this.dispatchService.send(DH,{
+//					type: 'n2rerender'
+//				});
+//				
+//			
+//			_this.lastTime = currTime;
+//
+//			
+//			
+//		}
 
 	}
 

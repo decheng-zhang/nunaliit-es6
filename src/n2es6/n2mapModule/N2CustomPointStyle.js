@@ -66,19 +66,22 @@ class N2CustomPointStyle extends RegularShape{
 					}
 				}
 			}
-			if (typeof options.data === 'object'
+			if (options.data
+				&& typeof options.data === 'object'
 				&& typeof options.data.duration === 'number'){
 				options.radius = previousRadius + options.data.duration;
+			} else {
+				options.radius = previousRadius;
 			}
 		} else {
 			options.data.forEach(function(d){
-			options.radius +=d.duration;
+			options.radius +=Math.ceil(d.duration-0.4);
 		})
 		}
 		options.radius *= 2* options.donutScaleFactor;
 		
 		super ({	radius: options.radius , 
-					fill: new Fill({color: [0,0,0]}),
+					fill: new Fill({color: [0,0,0,0]}),
 					rotation: options.rotation,
 					snapToPixel: options.snapToPixel
 				});
@@ -115,7 +118,11 @@ class N2CustomPointStyle extends RegularShape{
 				});
 			}
 		}
-		this.renderChart_();
+		if (this.data_){
+			this.renderChart_();
+		} else {
+			return;
+		}
 }
 
 	/**
@@ -195,6 +202,8 @@ class N2CustomPointStyle extends RegularShape{
 		}
 		
 	}
+	
+	//only used for treeRing not used for treeRingB
 	_getRings (){
 		var rings = [];
 		var currentRing = null;
@@ -301,10 +310,19 @@ class N2CustomPointStyle extends RegularShape{
 				context.rect ( 0,0,2*c,2*c );
 				let currRadius = this._getPreviousRadius();
 				let ring = this.data_;
-				let dur = ring.duration;
+				if ( !ring ){
+					throw new Error ('N2CustomPointStyle: data is not provided');
+				}
+				//Make sure the radius and its increment are Integer value
+				let dur = Math.ceil(ring.duration-0.4);
 				let effectiveRadiusIncre = Math.floor(
 						(1 * Math.sqrt( dur / 60 ) * this.donutScaleFactor * 7.7)
 				);
+				
+				//If radius equals to zero or undefined no drawing;
+				if ( !effectiveRadiusIncre ){
+					break
+				}
 				var type = ring.type;
 				let region = new Path2D();
 				region.arc(c, c, currRadius, 0, 2* Math.PI);
