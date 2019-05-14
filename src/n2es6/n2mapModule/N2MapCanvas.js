@@ -197,7 +197,18 @@ class N2MapCanvas  {
 
 		this.bgSources = opts.backgrounds || [];
 		this.coordinates = opts.coordinates || null;
+		this.renderOrderBasedOn = opts.renderOrderBasedOn || undefined;
 		
+		if (this.renderOrderBasedOn
+			&& this.renderOrderBasedOn[0] === '='){
+			try{
+				this.renderOrderBasedOn = $n2.styleRuleParser.parse(
+						this.renderOrderBasedOn.substr(1)
+					);
+			} catch(e){
+				this.renderOrderBasedOn = e;
+			}
+		}
 		this.styleRules = $n2.styleRule.loadRulesFromObject(opts.styles);
 
 		this._drawMap();
@@ -598,7 +609,7 @@ class N2MapCanvas  {
 
 		function DFS(item, callback){
 			if(!item) return;
-			if ( item.data){
+			if ( item.data || typeof item.data === 'number'){
 				callback (item);
 				return;
 			}
@@ -637,7 +648,24 @@ class N2MapCanvas  {
 					source: charlieSource,
 					style: StyleFn,
 					renderOrder: function(feature1, feature2){
-						return $n2.olUtils.ol5FeatureSorting(feature1, feature2);
+						var valueSelector = _this.renderOrderBasedOn;
+						if (typeof valueSelector === 'object'
+							&& typeof valueSelector.getValue(feature1) === 'number'){
+								
+							var l = valueSelector.getValue(feature1),
+								r = valueSelector.getValue(feature2);
+							if (typeof l === 'number' && typeof r === 'number'){
+								if (l < r){
+									return -1;
+								} else if(l > r){
+									return 1;
+								} else {
+									return 0;
+								}
+							}
+						} else {
+							return $n2.olUtils.ol5FeatureSorting(feature1, feature2);
+						}
 					}
 				});
 //				var layerOptions = _this.overlayInfos.shift();

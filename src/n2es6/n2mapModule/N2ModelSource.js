@@ -184,7 +184,7 @@ class N2ModelSource extends Vector {
 	/**
 	 * This function is called when the map resolution is changed
 	 */
-	onChangedResolution(res,proj, extent){
+	onChangedResolution(res, proj, extent){
 		//$n2.log('resolution',res,proj);
 
 
@@ -268,6 +268,7 @@ class N2ModelSource extends Vector {
 
 		return targetResolution;
 	}
+	//TODO need to reimplemented it, too expensive for reload every feature
 	_reloadAllFeatures(){
 		var _this = this;
 
