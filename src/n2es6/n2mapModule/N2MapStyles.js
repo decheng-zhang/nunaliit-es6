@@ -113,8 +113,12 @@ class N2MapStyles {
 				}
 				var value = Object.assign({}, {map: this._map, feature: feature}, symbols[symbol]);
 				let imageStyle = this.getOl5StyleObjFromV2Style(symbol, value);
-				let rstStyle = new Style({image: imageStyle});
-				rstStyleSet.push(rstStyle);
+				if (imageStyle){
+					let rstStyle = new Style({image: imageStyle});
+					if (rstStyle){
+						rstStyleSet.push(rstStyle);
+					}
+				}
 			}
 			return rstStyleSet;
 		}

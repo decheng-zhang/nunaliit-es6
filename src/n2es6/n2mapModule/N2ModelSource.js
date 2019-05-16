@@ -275,7 +275,14 @@ class N2ModelSource extends Vector {
 		var wktFormat = new WKT();
 
 		let features = [];
+		//var docInfos = $n2.utils.values (this.infoByDocId);
+		//docInfos.sort(function(a, b){
+		//	var l = a.doc._ldata.start || 0,
+		//	r =  b.doc._ldata.start || 0;
+		//	return l-r;
+		//});
 		for(var docId in this.infoByDocId){
+			
 			var docInfo = this.infoByDocId[docId];
 			var doc = docInfo.doc;
 			if( doc

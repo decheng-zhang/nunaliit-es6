@@ -118,7 +118,14 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.dispatchService.register(DH,'findIsAvailable',f);
 		};
 	}
-
+	getSource(){
+		return this.source;
+	}
+	setSource(opt_source){
+		this.source = opt_source;
+		this.refresh();
+		this.changed();
+	}
 	onHover(evt){
 
 		let selected  = evt.selected;
@@ -785,11 +792,11 @@ class N2SourceWithN2Intent extends VectorSource {
 			} else if( m.docIds ){
 				this._startFocus(m.docIds);
 			};
-
+			
 
 		} else if( 'focusOff' === type ) {
 			this._endFocus();
-
+			
 		} else if( 'focusOnSupplement' === type ) {
 			var fid = m.docId;
 			

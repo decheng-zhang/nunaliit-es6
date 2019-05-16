@@ -43,6 +43,7 @@ class N2CustomPointStyle extends RegularShape{
 			stacking : true,
 			map : null,
 			data: undefined,
+			text : undefined, 
 			startupOffset : 10,
 			feature: null,
 			color : '#000000',
@@ -96,7 +97,7 @@ class N2CustomPointStyle extends RegularShape{
 									color: "#ffffff",
 									width: 2
 								});
-		
+		this.text_ = options.text || null;
 		this.donutratio_ = options.donutRatio || 0.5;
 		this.donutScaleFactor = options.donutScaleFactor ;
 		this.type_ = options.type;
@@ -283,7 +284,7 @@ class N2CustomPointStyle extends RegularShape{
 				context.lineWidth = strokeWidth;
 				context.save();
 				//context.beginPath();
-				context.rect ( 0,0,2*c,2*c );
+				context.rect ( 0,0,c,c );
 				let rings = this._getRings();
 				let currRadius = this.startupOffset_ ;
 	
@@ -345,6 +346,18 @@ class N2CustomPointStyle extends RegularShape{
 				context.fillStyle = this.color_
 				context.globalAlpha = this.opacity_;
 				context.fill(region, 'evenodd');
+				if (this.text_){
+					context.font = "15px Comic Sans MS";
+					context.fillStyle = "black";
+					context.textAlign = "top";
+					context.textBaseline= "middle";
+					context.globalAlpha = 1.0;
+					context.fillText(this.text_ , 
+									c + Math.cos(-Math.PI/2)*(currRadius+5),
+									c + Math.sin(-Math.PI/2)*(currRadius+5)
+								);
+				}
+				
 				context.restore();
 				this._appendNewRadius(this._ext,effectiveRadiusIncre);
 				break;

@@ -27,6 +27,8 @@ import {default as VectorLayer} from 'ol/layer/Vector.js';
 import {default as LayerGroup} from 'ol/layer/Group.js';
 import {default as ImageLayer} from 'ol/layer/Image.js';
 import {default as View} from 'ol/View.js';
+import {default as N2DonutCluster} from '../ol5support/N2DonutCluster.js';
+
 
 import {transform, getTransform, transformExtent} from 'ol/proj.js';
 import {default as Projection} from 'ol/proj/Projection.js';
@@ -170,6 +172,7 @@ class N2MapCanvas  {
 
 		
 
+		this.isClustering = undefined;
 		this.n2View = undefined;
 		this.n2Map = undefined;
 
@@ -202,9 +205,13 @@ class N2MapCanvas  {
 		if (this.renderOrderBasedOn
 			&& this.renderOrderBasedOn[0] === '='){
 			try{
+				var targetString = this.renderOrderBasedOn.substr(1);
+				if (targetString.startsWith("doc")){
+					targetString = targetString.substr(3);
+					targetString = "data"+ targetString;
+				}
 				this.renderOrderBasedOn = $n2.styleRuleParser.parse(
-						this.renderOrderBasedOn.substr(1)
-					);
+						targetString);
 			} catch(e){
 				this.renderOrderBasedOn = e;
 			}
@@ -561,7 +568,40 @@ class N2MapCanvas  {
 					}
 				});
 		nested.addControl ( pedit );
-
+		var pcluster = new Toggle({
+			html: '<i class="fa fa-map-marker" ></i>',
+			className: "cluster_toggle",
+			title: 'Cluster_Toggle',
+			interaction : undefined,
+			active: _this.isClustering ? true: false,
+			onToggle: function(active)
+			{
+				if(active && !_this.isClustering){
+					let c_source =  _this.overlayLayers[0].getSource();
+					let a_source = c_source.getSource();
+					let b_source = new N2DonutCluster({source: a_source});
+					a_source.changed();
+					
+					c_source.setSource(b_source);
+					b_source.changed();
+					_this.isClustering = true;
+					_this.dispatchService.send(DH, {
+						type: 'n2rerender'
+					})
+				} else if (_this.isClustering && !active) {
+					let c_source =  _this.overlayLayers[0].getSource();
+					let b_source = c_source.getSource();
+					let a_source = b_source.getSource();
+					c_source.setSource(a_source);
+					a_source.changed();
+					_this.isClustering = false;
+					_this.dispatchService.send(DH, {
+						type: 'n2rerender'
+					})
+				}
+			}
+		})
+		mainbar.addControl (pcluster);
 
 		/* Standard Controls */
 //		mainbar.addControl (new ZoomToExtent({  extent: [ 265971,6243397 , 273148,6250665 ] }));
@@ -633,9 +673,13 @@ class N2MapCanvas  {
 				var alphasource = Sources[i];
 				var betaSource = alphasource;
 				if ( overlayInfo.clustering ){
+					
+					if ( typeof _this.isClustering === 'undefined'){
+						_this.isClustering = true;
+					}
 					var clsOpt = Object.assign({}, overlayInfo.clustering
 							,{source: alphasource});
-					betaSource = new n2es6.ol5support.N2Cluster(clsOpt);
+					betaSource = new N2DonutCluster(clsOpt);
 				}
 				var charlieSource = new N2SourceWithN2Intent({
 					interaction: _this.interactionSet.selectInteraction,
@@ -644,12 +688,13 @@ class N2MapCanvas  {
 				});
 				var vectorLayer = new VectorLayer({
 					title: "CouchDb",
-					renderMode : 'image',
+					renderMode : 'vector',
 					source: charlieSource,
 					style: StyleFn,
 					renderOrder: function(feature1, feature2){
 						var valueSelector = _this.renderOrderBasedOn;
-						if (typeof valueSelector === 'object'
+						var tt = valueSelector.getValue(feature1) ;
+						if ( typeof valueSelector === 'object'
 							&& typeof valueSelector.getValue(feature1) === 'number'){
 								
 							var l = valueSelector.getValue(feature1),
