@@ -12,9 +12,9 @@ import {Fill, RegularShape, Stroke, Style, Text} from 'ol/style.js';
 import {default as Photo} from'ol-ext/style/Photo';
 import {createDefaultStyle} from 'ol/style/Style.js'
 
-
 import GeoJSON from 'ol/format/GeoJSON';
 import {default as ImageSource} from 'ol/source/Image.js';
+import WMTS from 'ol/source/WMTS.js';
 import {default as VectorSource } from 'ol/source/Vector.js';
 import {default as N2Select} from './N2Select.js';
 import {default as N2SourceWithN2Intent} from './N2SourceWithN2Intent.js';
@@ -29,10 +29,11 @@ import {default as ImageLayer} from 'ol/layer/Image.js';
 import {default as View} from 'ol/View.js';
 import {default as N2DonutCluster} from '../ol5support/N2DonutCluster.js';
 
-
-import {transform, getTransform, transformExtent} from 'ol/proj.js';
+import {extend, isEmpty, getTopLeft, getWidth} from 'ol/extent.js';
+import {transform, getTransform, transformExtent, get as getProjection} from 'ol/proj.js';
 import {default as Projection} from 'ol/proj/Projection.js';
 import Tile from 'ol/layer/Tile.js';
+import WMTSTileGrid from 'ol/tilegrid/WMTS.js';
 
 import {click as clickCondition} from 'ol/events/condition.js';
 import mouseWheelZoom from 'ol/interaction/MouseWheelZoom.js';
@@ -50,6 +51,7 @@ import 'ol-ext/dist/ol-ext.css';
 import Bar from 'ol-ext/control/Bar';
 import Toggle from 'ol-ext/control/Toggle';
 import Timeline from 'ol-ext/control/Timeline';
+import Popup from 'ol-ext/overlay/Popup';
 //import timelineData from '!json-loader!../../data/fond_guerre.geojson';
 
 var _loc = function(str,args){ return $n2.loc(str,'nunaliit2',args); };
@@ -67,6 +69,7 @@ const VENDOR =  {
 		GOOGLEMAP : 'googlemaps',
 		BING : 'bing',
 		WMS : 'wms',
+		WMTS: 'wmts',
 		OSM : 'osm',
 		STAMEN : 'stamen',
 		IMAGE : 'image',
@@ -110,6 +113,7 @@ class N2MapCanvas  {
 		},opts_);
 
 		var _this = this;
+		this._classname = 'N2MapCanvas';
 		this.dispatchService  = null;
 
 		this.showService = null;
@@ -123,6 +127,7 @@ class N2MapCanvas  {
 			if( config.directory ){
 				this.dispatchService = config.directory.dispatchService;
 				this.showService = config.directory.showService;
+				this.customService = config.directory.customService;
 			};
 		};
 
@@ -136,36 +141,11 @@ class N2MapCanvas  {
 
 		this.center = undefined;
 		this.resolution = undefined;
-		//===============
-		this.mockingDataComplete = 	[  {duration: 10,
-		    type: {name: 'alpha', strokeColor: '#ff0',
-		    	opacity: 0.5}
-		},
-		{duration: 5,
-		    type: {name: 'beta', strokeColor: '#060',
-		    	opacity: 0.7}
-		},
-		{duration: 4,
-		    type: {name: 'charlie', strokeColor: '#b5d',
-		    	opacity: 0.9}
-		}
-		,{duration: 3,
-		    type: {name: 'd', strokeColor: '#666',
-		    	opacity: 0.5}
-		},
-		{duration: 20,
-		    type: {name: 'b', strokeColor: '#3b7',
-		    	opacity: 0.7}
-		},
-		{duration: 8,
-		    type: {name: 'g', strokeColor: '#f64',
-		    	opacity: 0.9}
-		}
-		];
-		this.mockingData = [];
+
 		this.lastTime = null;
 		this.initialTime = null;
 		this.endIdx = 0;
+		this.refreshCnt = undefined;
 		
 		var t = new $n2.N2Editor.Base();
 		//==============
@@ -175,10 +155,19 @@ class N2MapCanvas  {
 		this.isClustering = undefined;
 		this.n2View = undefined;
 		this.n2Map = undefined;
-
+		this.popupOverlay = undefined;
 		this.n2MapStyles = new N2MapStyles();
+		this.refreshCallback = null;
 
-
+		if ( this.customService ){
+			var customService = this.customService;
+			if ( !this.refreshCallback ){
+				var cb = customService.getOption('mapRefreshCallback' );
+				if ( typeof cb === 'function' ){
+					this.refreshCallback = cb;
+				}
+		}
+		}
 		this.interactionSet = {
 				selectInteraction : null,
 				drawInteraction : null
@@ -191,9 +180,11 @@ class N2MapCanvas  {
 			var f = function(m){
 				_this._handleDispatch(m);
 			};
-			this.dispatchService.register(DH,'n2ViewAnimation',f);
+			this.dispatchService.register(DH, 'n2ViewAnimation', f);
 			this.dispatchService.register(DH, 'n2rerender', f);
 			this.dispatchService.register(DH, 'time_interval_change', f);
+			this.dispatchService.register(DH, 'focusOn', f);
+			this.dispatchService.register(DH, 'mapRefreshCallbackRequest', f);
 		};
 
 		$n2.log(this._classname,this);
@@ -292,9 +283,9 @@ class N2MapCanvas  {
 						sourceModelId: sourceModelId
 						,dispatchService: this.dispatchService
 						,projCode: 'EPSG:3857'
-							,onUpdateCallback : function(state){
-								//_this._modelLayerUpdated(layerOptions, state);
-							}
+						,onUpdateCallback : function(state){
+							//_this._modelLayerUpdated(layerOptions, state);
+						}
 					,notifications: {
 						readStart: function(){
 							//_this._mapBusyStatus(1);
@@ -304,6 +295,22 @@ class N2MapCanvas  {
 					}
 					}
 					});
+					
+					
+					var listenerKey = source.on('change', function(e) {
+						if (source.getState() == 'ready') {
+							if (!_this.refreshCnt){
+								_this.refreshCnt = 1;
+							}
+							var curCnt = _this.refreshCnt;
+							_this.dispatchService.send(DH, {
+								type: 'mapRefreshCallbackRequest',
+								cnt:curCnt
+							});
+							_this.refreshCnt++;
+						}
+					});
+						//      unByKey(listenerKey);
 					this.sources.push(source);
 				};
 			} else if ('wfs' === overlay.type) {
@@ -406,49 +413,16 @@ class N2MapCanvas  {
 		this.overlayLayers = this._genOverlayMapLayers(this.sources);
 		this.mapLayers = this._genBackgroundMapLayers(this.bgSources);
 
-		var timelineCache = {};
-		  function style(select){
-		    return function(f) {
-		      var style = timelineCache[f.get('img')+'-'+select];
-		      if (!style) {
-		        var img = new Photo({
-		          src: f.get('img'),
-		          radius: select ? 20:15,
-		          shadow: true,
-		          stroke: new Stroke({
-		            width: 4,
-		            color: select ? '#fff':'#fafafa'
-		          }),
-		          onload: function() { f.changed(); }
-		        })
-		        style = timelineCache[f.get('img')+'-'+select] = new Style({
-		          image: img
-		        })
-		      }
-		      return style;
-		    }
-		  };
+		
+		var customPopup= new Popup({
+			popupClass: "",
+			positioning: 'auto',
+			autoPan: true,
+			autoPanAnimation: {duration: 250}
+		});
+		this.popupOverlay = customPopup;
+		this.n2Map.addOverlay(customPopup);
 
-		  var vectorSource = new VectorSource({
-			    url: '../../data/fond_guerre.geojson',
-			    projection: 'EPSG:3857',
-			    format: new GeoJSON(),
-					attributions: [ "&copy; <a href='https://data.culture.gouv.fr/explore/dataset/fonds-de-la-guerre-14-18-extrait-de-la-base-memoire'>data.culture.gouv.fr</a>" ],
-			    logo:"https://www.data.gouv.fr/s/avatars/37/e56718abd4465985ddde68b33be1ef.jpg"
-			  });
-			  var listenerKey = vectorSource.on('change', function(e) {
-			    if (vectorSource.getState() == 'ready') {
-			      unByKey(listenerKey);
-			      customTimeline.refresh();
-			    }
-			  });
-			  var timelineLyr = new VectorLayer({
-			    name: '1914-18',
-			    preview: "http://www.culture.gouv.fr/Wave/image/memoire/2445/sap40_z0004141_v.jpg",
-			    source: vectorSource,
-			    style: style()
-			  });
-		//this.overlayLayers.push(timelineLyr);
 
 
 		/**
@@ -474,56 +448,6 @@ class N2MapCanvas  {
 				});
 		customMap.addControl(customLayerSwitcher);
 
-		var customTimeline = new Timeline({
-		    className: 'ol-zoomhover',
-		    source: vectorSource,
-		    graduation: 'day', // 'month'
-		    zoomButton: true,
-		    getHTML: function(f){
-		      return '<img src="'+f.get('img')+'"/> '+(f.get('text')||'');
-		    },
-		    getFeatureDate: function(f) {
-		      return f.get('date');
-		    },
-		    endFeatureDate: function(f) {
-		      var d = f.get('endDate');
-		      // Create end date
-		      if (!d) {
-		        d = new Date (f.get('date'));
-		        d = new Date( d.getTime() + (5 + 10*Math.random())*10*24*60*60*1000);
-		        f.set('endDate', d);
-		      }
-		      return d;
-		    }
-		  });
-
-
-		customMap.addControl(customTimeline);
-		customTimeline.on('select', function(e){
-			    // Center map on feature
-			customMap.getView().animate({
-			      center: e.feature.getGeometry().getCoordinates(),
-			      zoom: 10
-			    });
-			    // Center time line on feature
-			customTimeline.setDate(e.feature);
-			    // Select feature on the map
-			    //select.getFeatures().clear();
-			    //select.getFeatures().push(e.feature);
-			  });
-			  // Collapse the line
-		customTimeline.on('collapse', function(e) {
-			    if (e.collapsed) $(_this.canvasId).addClass('noimg')
-			    else $(_this.canvasId).removeClass('noimg')
-			  });
-			  // >croll the line
-		customTimeline.on('scroll', function(e){
-			    $('.options .date').text(e.date.toLocaleDateString());
-			  });
-
-
-
-
 		var mainbar = new Bar();
 		customMap.addControl(mainbar);
 		mainbar.setPosition("top");
@@ -548,9 +472,20 @@ class N2MapCanvas  {
 			if (e.selected) {
 				this._retrivingDocsAndSendSelectedEvent(e.selected);
 			}
-		}).bind(this)
+		}).bind(this));
 
-		);
+		
+		this.interactionSet.selectInteraction.on("hover", (function(e) {
+			var mapBrowserEvent = e.upstreamEvent;
+			if (e.deselected){
+				var popup = _this.popupOverlay;
+				popup.hide();
+			}
+			if (e.selected) {
+				this._retrivingDocsAndPaintPopup(e.selected, mapBrowserEvent);
+			}
+		}).bind(this));
+		
 		nested.addControl(selectCtrl);
 
 		this.interactionSet.drawInteraction = new DrawInteraction
@@ -567,11 +502,11 @@ class N2MapCanvas  {
 					{
 					}
 				});
-		nested.addControl ( pedit );
+		//nested.addControl ( pedit );
 		var pcluster = new Toggle({
 			html: '<i class="fa fa-map-marker" ></i>',
 			className: "cluster_toggle",
-			title: 'Cluster_Toggle',
+			title: 'Toggle clustering',
 			interaction : undefined,
 			active: _this.isClustering ? true: false,
 			onToggle: function(active)
@@ -611,6 +546,45 @@ class N2MapCanvas  {
 	}
 
 
+	_retrivingDocsAndPaintPopup(feature, mapBrowserEvent){
+		var _this = this;
+		if (_this.popupOverlay) {
+
+			var popup = _this.popupOverlay;
+			var featurePopupHtmlFn;
+			if (! $n2.isArray(feature)){
+				
+				if (_this.customService){
+					var cb = _this.customService.getOption('mapFeaturePopupCallback');
+					if( typeof cb === 'function' ) {
+						featurePopupHtmlFn = cb;
+					};
+				}
+				//var contentArr = feature.data._ldata.tags;
+				if( featurePopupHtmlFn ){
+					featurePopupHtmlFn({
+						feature: feature
+						,onSuccess: function(content){
+							var mousepoint = mapBrowserEvent.coordinate;
+							popup.show(mousepoint, content);
+						}
+						,onError: function(){}//ignore
+					});
+					
+					//var content = featurePopupHtmlFn
+					//	if (contentArr && $n2.isArray(contentArr)){
+					//		content = contentArr.join(', ');
+					//	}
+						
+				};
+
+			} else {
+				//n2es6 does not support multi hover, so does nunaliit2 
+			}
+		
+		}
+	}
+	
 	_retrivingDocsAndSendSelectedEvent(features) {
 
 		var _this = this;
@@ -805,15 +779,7 @@ class N2MapCanvas  {
  			}
 			//
 			f.n2_doc = data;
-			//===================== mocking data
-//			if (f.n2_doc.cinedata){
-//				f._v2_style_ = {};
-//				f.n2_doc.ldata = _this.getMockingData();
-//
-//			}
-			//====================== mocking end
-			
-			//(import $n2.styleRule.js).Style
+
 
 			let style = _this.styleRules.getStyle(feature);
 
@@ -841,14 +807,6 @@ class N2MapCanvas  {
 		}
 	}
 
-	getMockingData(){
-		if (typeof this.mock_idx === 'undefined') {
-			this.mock_idx = -1;
-		}
-		this.mock_idx ++;
-		var len = this.mockingDataComplete.length;
-		return this.mockingDataComplete[this.mock_idx % len];
-	}
 	_genBackgroundMapLayers(bgSources) {
 		var _this = this;
 		var bg = null;
@@ -912,7 +870,8 @@ class N2MapCanvas  {
 		var sourceTypeInternal =
 			layerDefinition.type.replace(/\W/g,'').toLowerCase();
 		var sourceOptionsInternal = layerDefinition.options;
-
+		var name = layerDefinition.name;
+		
 		if ( sourceTypeInternal == VENDOR.GOOGLEMAP ) {
 
 			$n2.log('Background of Google map is under construction');
@@ -947,6 +906,49 @@ class N2MapCanvas  {
 			} else {
 
 				$n2.reportError('Parameter is missing for source: ' + sourceTypeInternal );
+			}
+
+		} else if (sourceTypeInternal == VENDOR.WMTS ){
+			
+			var options = sourceOptionsInternal;
+			if ( options ){
+				var wmtsOpt = {
+					url: null
+					,layer: null
+					,matrixSet: null
+					,projection: null
+					,style: null
+					,wrapX: false
+				};
+				
+				if ( options.matrixSet && options.numZoomLevels){
+					var projection = getProjection(options.matrixSet);
+					var projectionExtent = projection.getExtent();
+					var numofzoom = parseInt(options.numZoomLevels);
+					var size = getWidth(projectionExtent) / 256;
+					var resolutions = new Array(numofzoom);
+					var matrixIds = new Array(numofzoom);
+					for (var z = 0; z < numofzoom; ++z) {
+						// generate resolutions and matrixIds arrays for this WMTS
+						resolutions[z] = size / Math.pow(2, z);
+						matrixIds[z] = options.matrixSet + ":" + z;
+					}
+					
+					wmtsOpt.projection = projection;
+					wmtsOpt.tileGrid = new WMTSTileGrid({
+						origin: getTopLeft(projectionExtent),
+						resolutions: resolutions,
+						matrixIds: matrixIds
+					});
+				}
+				
+				for (var key in options){
+					wmtsOpt[key] = options[key];
+				}
+				return new WMTS(wmtsOpt);
+			} else {
+				$n2.reportError('Bad configuration for layer: '+name);
+				return null;
 			}
 
 		} else if ( sourceTypeInternal == VENDOR.OSM) {
@@ -1021,13 +1023,33 @@ class N2MapCanvas  {
 			}
 
 		} else if ('n2rerender' === type){
+			//This refresh strictly execute the invoke for rerender the ol5 map
 			if (_this.n2Map){
 				_this.overlayLayers.forEach(function(overlayLayer){
 						overlayLayer.changed();
 
 				});
 			}
-		} 
+		} else if ( 'mapRefreshCallbackRequest' === type ){
+			//This refresh only execute the last invoke,
+			//the earlier invoke will be cancelled if new invoke arrived
+			if ( m.cnt + 1 === this.refreshCnt) {
+				var cb = this.refreshCallback;
+				if ( cb && typeof cb === 'function'){
+					cb(null, this);
+				}
+				
+			}
+
+		};
+//		else if ('focusOn' === type) {
+//			
+//			if (_this.popupOverlay) {
+//				var popup = _this.popupOverlay;
+//				var content = "tset";
+//				popup.show(,content);
+//			}
+//		}
 //		else if ('time_interval_change' === type){
 //			let currTime = m.value.min;
 //			let incre = 100000000;
@@ -1054,7 +1076,31 @@ class N2MapCanvas  {
 //		}
 
 	}
-
+	
+	_getMapFeaturesIncludeingFidMapOl5(fidMap) {
+		
+		var result_features = [];
+		if( this.features_ && this.features_.length > 0 ) {
+			
+			let features = this.features_;
+			for(let loop=0;loop<features.length;++loop) {
+				let feature = features[loop];
+				if( feature.fid && fidMap[feature.fid] ) {
+					result_features.push( feature );
+				} else if( feature.cluster ) {
+					for(var j=0,k=feature.cluster.length; j<k; ++j){
+						var f = feature.cluster[j];
+						if( f.fid && fidMap[f.fid] ){
+							 result_features.push(f);
+						};
+					};
+				};
+			};
+		};
+		
+		return result_features;
+	}
+	
 	/**
 	 * Compute the bounding box of the original geometry. This may differ from
 	 * the bounding box of the geometry on the feature since this can be a
@@ -1158,7 +1204,12 @@ export function HandleCanvasDisplayRequest(m){
 };
 
 //--------------------------------------------------------------------------
-
+nunaliit2.n2es6 = {
+		ol_proj_Projection : Projection,
+		ol_proj_transformExtent : transformExtent,
+		ol_extent_extend : extend,
+		ol_extent_isEmpty : isEmpty
+};
 
 nunaliit2.canvasMap = {
 		MapCanvas: N2MapCanvas

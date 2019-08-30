@@ -150,7 +150,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		//TODO There should be a straightforward way to create popup
 		//this._hoverFeaturePopup(selected, layer);
 
-		return false;
+		return true;
 	}
 	//clear up for hover
 	_endHover() {
@@ -848,7 +848,7 @@ class N2SourceWithN2Intent extends VectorSource {
 			};
 
 			
-		}  else if( 'unselected' === type ) {
+		} else if( 'unselected' === type ) {
 			this._endClicked();
 
 		} else if( 'find' === type ){

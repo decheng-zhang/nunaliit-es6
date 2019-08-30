@@ -157,6 +157,12 @@ function handleEvent_(mapBrowserEvent) {
 //		&& typeof this.hoverCallback === 'function'){
 //		this.hoverCallback (selected || null);
 //		}
+		if (!selected && !deselected ){
+			return true;
+		} else if (selected && deselected 
+				&& selected.fid === deselected.fid){
+			return true;
+		}
 		this.dispatchEvent(
 				new N2SelectEvent(N2SelectEventType.HOVER,
 						selected || null, deselected, mapBrowserEvent)
