@@ -82,6 +82,9 @@ class N2ModelSource extends Vector {
 //		}
 	}
 
+	refresh(){
+		//this.changed();
+	}
 	_modelSourceUpdated (state) {
 		
 		var _this = this;
@@ -134,6 +137,7 @@ class N2ModelSource extends Vector {
 	
 	loadFeatures(extent, resolution, projection) {
 		//this.loading = false;
+		//this._reloadAllFeatures();
 	}
 	_reportLoading(flag){
 		if( this.loading && !flag ){

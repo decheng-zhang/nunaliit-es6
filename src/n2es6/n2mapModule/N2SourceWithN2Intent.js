@@ -3,7 +3,7 @@
 */
 
 import VectorSource from 'ol/source/Vector.js';
-import {listen, unlisten} from 'ol/events.js';
+import {listen, unlisten, unlistenByKey} from 'ol/events.js';
 import EventType from 'ol/events/EventType.js';
 
 
@@ -95,7 +95,14 @@ class N2SourceWithN2Intent extends VectorSource {
 			 +"this custom source");
 		}
 		//-------------------------
-		listen(this.source, EventType.CHANGE, this.refresh, this);
+		this.sourceChangeKey_ = null;
+	    if (options.source){
+	    	this.source = options.source;
+	    	this.sourceChangeKey_ =
+	    		listen(this.source, EventType.CHANGE, this.refresh, this);
+	    }
+		//listen(this.source, EventType.CHANGE, this.refresh, this);
+	    listen(this, 'sourceRefChanged', this.handleSourceRefChange, this);
 		listen(this.interaction_,  "hover",  this.onHover, this);
 		listen(this.interaction_,  "clicked",  this.onClicked, this);
 
@@ -121,11 +128,31 @@ class N2SourceWithN2Intent extends VectorSource {
 	getSource(){
 		return this.source;
 	}
-	setSource(opt_source){
-		this.source = opt_source;
-		this.refresh();
-		this.changed();
+	handleSourceRefChange(){
+		 if (this.sourceChangeKey_) {
+		      unlistenByKey(this.sourceChangeKey_);
+		      this.sourceChangeKey_ = null;
+		    }
+		    var source = this.source;
+		    if (source) {
+		      this.sourceChangeKey_ = listen(source,
+		        EventType.CHANGE, this.refresh, this);
+		    }
+		    
 	}
+	
+	setSource(source){
+		if (source){
+			this.source = source;
+		} else {
+			this.source = null;
+		}
+		this.refresh();
+		this.dispatchEvent('sourceRefChanged');
+		this.changed();
+		
+	}
+
 	onHover(evt){
 
 		let selected  = evt.selected;

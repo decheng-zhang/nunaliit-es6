@@ -84,16 +84,51 @@ class N2DonutCluster extends VectorSource {
 		* @type {number}
 		*/
 		this.clusterId = 1;
-		
-	    /**
+		this.sourceChangeKey_ = null;
+	    if (options.source){
+	    	this.source = options.source;
+	    	this.sourceChangeKey_ =
+	    		listen(this.source, EventType.CHANGE, this.refresh, this);
+	    }
+		/**
 	     * @type {Array<Feature>}
 	     * @protected
 	     */
 	    this.features = [];
-	    this.source = options.source;
+	   // this.source = options.source;
 	    
-	    listen(this.source, EventType.CHANGE, this.refresh, this);
+	    listen(this, 'sourceRefChanged', this.handleSourceRefChange, this);
+	    //listen(this.source, EventType.CHANGE, this.refresh, this);
 
+	}
+	
+	handleSourceRefChange(){
+		 if (this.sourceChangeKey_) {
+		      unlistenByKey(this.sourceChangeKey_);
+		      this.sourceChangeKey_ = null;
+		    }
+		    var source = this.source;
+		    if (source) {
+		      this.sourceChangeKey_ = listen(source,
+		        EventType.CHANGE, this.refresh, this);
+		    }
+		    
+	}
+	
+	setSource(source){
+		if (source){
+			this.source = source;
+		} else {
+			this.source = null;
+			
+		}
+		this.dispatchEvent('sourceRefChanged');
+		if (this.source){
+			this.refresh();
+			this.changed();
+		}
+
+		
 	}
 	/**
 	* Loading the feature from the layer source, and config the resolution and projection
@@ -117,38 +152,36 @@ class N2DonutCluster extends VectorSource {
 		this.addFeatures(this.features);
 		
 	}
-	clear(opt_fast){
-		
-		 if (opt_fast) {
-		      for (var featureId in this.featureChangeKeys_) {
-		        var keys = this.featureChangeKeys_[featureId];
-		        keys.forEach(unlistenByKey);
-		      }
-		      if (!this.featuresCollection_) {
-		        this.featureChangeKeys_ = {};
-		        this.idIndex_ = {};
-		        this.undefIdIndex_ = {};
-		      }
-		    } else {
-		      if (this.featuresRtree_) {
-		        this.featuresRtree_.forEach(this.removeFeatureInternal, this);
-		        for (var id in this.nullGeometryFeatures_) {
-		          this.removeFeatureInternal(this.nullGeometryFeatures_[id]);
-		        }
-		      }
-		    }
-		    if (this.featuresCollection_) {
-		      this.featuresCollection_.clear();
-		    }
-
-		    if (this.featuresRtree_) {
-		      this.featuresRtree_.clear();
-		    }
-		    this.loadedExtentsRtree_.clear();
-		    this.nullGeometryFeatures_ = {};
-
-		
-	}
+//	clear(opt_fast){
+//		
+//		 if (opt_fast) {
+//		      for (var featureId in this.featureChangeKeys_) {
+//		        var keys = this.featureChangeKeys_[featureId];
+//		        keys.forEach(unlistenByKey);
+//		      }
+//		      if (!this.featuresCollection_) {
+//		        this.featureChangeKeys_ = {};
+//		        this.idIndex_ = {};
+//		        this.undefIdIndex_ = {};
+//		      }
+//		    } else {
+//		      if (this.featuresRtree_) {
+//		        this.featuresRtree_.forEach(this.removeFeatureInternal, this);
+//		        for (var id in this.nullGeometryFeatures_) {
+//		          this.removeFeatureInternal(this.nullGeometryFeatures_[id]);
+//		        }
+//		      }
+//		    }
+//		    if (this.featuresCollection_) {
+//		      this.featuresCollection_.clear();
+//		    }
+//
+//		    if (this.featuresRtree_) {
+//		      this.featuresRtree_.clear();
+//		    }
+//		    this.loadedExtentsRtree_.clear();
+//		    this.nullGeometryFeatures_ = {};
+//	}
 	
 	getSource(){
 		return this.source;

@@ -513,26 +513,28 @@ class N2MapCanvas  {
 			{
 				if(active && !_this.isClustering){
 					let c_source =  _this.overlayLayers[0].getSource();
+					_this.overlayLayers[0].setSource(null);
 					let a_source = c_source.getSource();
 					let b_source = new N2DonutCluster({source: a_source});
-					a_source.changed();
+					b_source.setSource(a_source)
+					c_source = new N2SourceWithN2Intent({
+						interaction: _this.interactionSet.selectInteraction,
+						source: b_source,
+						dispatchService: _this.dispatchService
+					});	
+					_this.overlayLayers[0].setSource (c_source);
 					
-					c_source.setSource(b_source);
-					b_source.changed();
 					_this.isClustering = true;
-					_this.dispatchService.send(DH, {
-						type: 'n2rerender'
-					})
+
 				} else if (_this.isClustering && !active) {
 					let c_source =  _this.overlayLayers[0].getSource();
 					let b_source = c_source.getSource();
 					let a_source = b_source.getSource();
 					c_source.setSource(a_source);
+					b_source.setSource(null);
 					a_source.changed();
 					_this.isClustering = false;
-					_this.dispatchService.send(DH, {
-						type: 'n2rerender'
-					})
+
 				}
 			}
 		})
@@ -564,7 +566,7 @@ class N2MapCanvas  {
 				if( featurePopupHtmlFn ){
 					featurePopupHtmlFn({
 						feature: feature
-						,onSuccess: function(content){
+						,onSuccess: function( content ){
 							var mousepoint = mapBrowserEvent.coordinate;
 							popup.show(mousepoint, content);
 						}
@@ -1023,13 +1025,16 @@ class N2MapCanvas  {
 			}
 
 		} else if ('n2rerender' === type){
+			var olmap = _this.n2Map;
 			//This refresh strictly execute the invoke for rerender the ol5 map
 			if (_this.n2Map){
 				_this.overlayLayers.forEach(function(overlayLayer){
-						overlayLayer.changed();
+						overlayLayer.getSource().refresh();
 
 				});
-			}
+				//var viewExt = olmap.getView().calculateExtent(olmap.getSize());
+				//olmap.getView().fit(viewExt);
+				}
 		} else if ( 'mapRefreshCallbackRequest' === type ){
 			//This refresh only execute the last invoke,
 			//the earlier invoke will be cancelled if new invoke arrived
