@@ -521,6 +521,7 @@ class N2MapCanvas  {
 			active: _this.isClustering ? true: false,
 			onToggle: function(active)
 			{
+				//TODO toggle cluster button only change the clusting-setting for first overlay-layer
 				if(active && !_this.isClustering){
 					let c_source =  _this.overlayLayers[0].getSource();
 					_this.overlayLayers[0].setSource(null);
@@ -679,7 +680,7 @@ class N2MapCanvas  {
 					style: StyleFn,
 					renderOrder: function(feature1, feature2){
 						var valueSelector = _this.renderOrderBasedOn;
-						var tt = valueSelector.getValue(feature1) ;
+
 						if ( typeof valueSelector === 'object'
 							&& typeof valueSelector.getValue(feature1) === 'number'){
 								
