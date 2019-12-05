@@ -27,7 +27,7 @@ import {default as VectorLayer} from 'ol/layer/Vector.js';
 import {default as LayerGroup} from 'ol/layer/Group.js';
 import {default as ImageLayer} from 'ol/layer/Image.js';
 import {default as View} from 'ol/View.js';
-import {default as N2DonutCluster} from '../ol5support/N2DonutCluster.js';
+import {default as N2Cluster} from '../ol5support/N2Cluster.js';
 
 import {extend, isEmpty, getTopLeft, getWidth} from 'ol/extent.js';
 import {transform, getTransform, transformExtent, get as getProjection} from 'ol/proj.js';
@@ -49,7 +49,7 @@ import LayerSwitcher from 'ol-layerswitcher';
 
 import 'ol-ext/dist/ol-ext.css';
 import Bar from 'ol-ext/control/Bar';
-import EditBar from 'ol-ext/control/EditBar';
+import EditBar from './EditBar';
 import Toggle from 'ol-ext/control/Toggle';
 import Timeline from 'ol-ext/control/Timeline';
 import Popup from 'ol-ext/overlay/Popup';
@@ -132,6 +132,7 @@ class N2MapCanvas  {
 				this.dispatchService = config.directory.dispatchService;
 				this.showService = config.directory.showService;
 				this.customService = config.directory.customService;
+				opts.directory = config.directory;
 			};
 		};
 
@@ -161,6 +162,7 @@ class N2MapCanvas  {
 		this.n2Map = undefined;
 		this.popupOverlay = undefined;
 		this.n2MapStyles = new N2MapStyles();
+		this.editbarControl = null;
 		this.refreshCallback = null;
 
 		if ( this.customService ){
@@ -274,6 +276,13 @@ class N2MapCanvas  {
 		};
 		this.currentMode = this.modes.NAVIGATE;
 		this.createMapInteractionSwitch();
+		
+		var authService = this._getAuthService();
+	    if( authService ) {
+	    	authService.addListeners(function(currentUser){
+				_this.loginStateChanged(currentUser);
+			});
+	    };
 		
 		// Register to events
 		if( this.dispatchService ){
@@ -426,7 +435,44 @@ class N2MapCanvas  {
 
 
 	};
+	
+    // === LOGIN STUFF START ========================================================
 
+    /*
+     * function: auth module listener for login state changes.  Only called if the auth
+     * module is loaded so checks of that inside this function are not useful.
+     * 
+     * Once installed by the subsequent call to addListener(), this is immediately
+     * called and then whenever a login state change is detected.
+     */
+    loginStateChanged(currentUser) {
+    	var showLogin = false;
+
+		if( null == currentUser ) {
+    		showLogin = true;
+    	};
+    	
+    	if( showLogin ) {
+    		this.hideMapInteractionSwitch();
+			this._switchMapMode(this.modes.NAVIGATE);
+    	} else {
+   			this.showMapInteractionSwitch();
+    	};
+    };
+    	
+    // === LOGIN STUFF END ========================================================
+	_getMapInteractionSwitch(){
+ 		return $("#"+this.interactionId)
+ 			.find('.n2map_map_interaction_switch');
+ 	};
+ 	hideMapInteractionSwitch() {
+ 		this._getMapInteractionSwitch().hide();
+	};
+	
+	showMapInteractionSwitch() {
+ 		this._getMapInteractionSwitch().show();
+	};
+	
  	createMapInteractionSwitch() {
  		var _this = this;
  		var mapInteractionButton = $('<input type="button" class="n2map_map_interaction_switch"/>')
@@ -442,10 +488,10 @@ class N2MapCanvas  {
 	
 	_clickedMapInteractionSwitch(e){
 		if( this.currentMode === this.modes.NAVIGATE ) {
-		//	this.switchToEditMode();
+			this.switchToEditMode();
 			
 		} else if( this.currentMode === this.modes.ADD_OR_SELECT_FEATURE ) {
-		//	this._switchMapMode(this.modes.NAVIGATE);
+			this._switchMapMode(this.modes.NAVIGATE);
 			
 		} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
 		//	this._cancelEditFeatureMode();
@@ -455,6 +501,8 @@ class N2MapCanvas  {
 		};
 		return false;
 	};
+	
+	//TODO the final function for different mode
     _switchMapMode(mode, opts) {
     	if( this.currentMode === mode ) {
     		// nothing to do
@@ -462,52 +510,58 @@ class N2MapCanvas  {
     	};
     	
     	// Remove current mode
-    	if( this.currentMode === this.modes.ADD_OR_SELECT_FEATURE ) {
-    		this.deactivateControl( this.editControls.addPoints );
-    		this.deactivateControl( this.editControls.toolbar );
-    		this.deactivateControl( this.editControls.modifyFeature );
-    		this.editLayer.events.unregister('featureadded', null, this.editModeAddFeatureCallback);
-            this.editLayer.events.unregister('beforefeaturesadded', null, this.convertToMultiGeometry);
-
-            this.deactivateSelectFeatureControl();
-            
-    	} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
-    		this.deactivateControl( this.editControls.addPoints );
-    		this.deactivateControl( this.editControls.toolbar );
-    		this.deactivateControl( this.editControls.modifyFeature );
-    		this.editLayer.events.unregister('featureadded', null, this.editModeAddFeatureCallback);
-            this.editLayer.events.unregister('beforefeaturesadded', null, this.convertToMultiGeometry);
-
-            this.deactivateSelectFeatureControl();
-            
-    	} else if( this.currentMode === this.modes.EDIT_FEATURE ) {
-    		this._removeGeometryEditor();
-            
-    	} else if( this.currentMode === this.modes.NAVIGATE ) {
-    		this.deactivateSelectFeatureControl();
-    	};
+//    	if( this.currentMode === this.modes.ADD_OR_SELECT_FEATURE ) {
+//    		this.deactivateControl( this.editControls.addPoints );
+//    		this.deactivateControl( this.editControls.toolbar );
+//    		this.deactivateControl( this.editControls.modifyFeature );
+//    		this.editLayer.events.unregister('featureadded', null, this.editModeAddFeatureCallback);
+//            this.editLayer.events.unregister('beforefeaturesadded', null, this.convertToMultiGeometry);
+//
+//            this.deactivateSelectFeatureControl();
+//            
+//    	} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
+//    		this.deactivateControl( this.editControls.addPoints );
+//    		this.deactivateControl( this.editControls.toolbar );
+//    		this.deactivateControl( this.editControls.modifyFeature );
+//    		this.editLayer.events.unregister('featureadded', null, this.editModeAddFeatureCallback);
+//            this.editLayer.events.unregister('beforefeaturesadded', null, this.convertToMultiGeometry);
+//
+//            this.deactivateSelectFeatureControl();
+//            
+//    	} else if( this.currentMode === this.modes.EDIT_FEATURE ) {
+//    		this._removeGeometryEditor();
+//            
+//    	} else if( this.currentMode === this.modes.NAVIGATE ) {
+//    		this.deactivateSelectFeatureControl();
+//    	};
 
     	// Apply new mode
     	this.currentMode = mode;
     	this._getMapInteractionSwitch().val(mode.buttonValue);
     	if( this.currentMode === this.modes.ADD_OR_SELECT_FEATURE ) {
-    		this.editLayer.events.register('featureadded', null, this.editModeAddFeatureCallback);
-    		this.editLayer.events.register('beforefeaturesadded', null, this.convertToMultiGeometry);
-    		this.activateControl( this.editControls.addPoints );
-    		this.activateControl( this.editControls.toolbar );
-    		this.activateControl( this.editControls.modifyFeature );
     		
-    		this.activateSelectFeatureControl();
+    		this.editbarControl.setVisible(true);
+    		this.editbarControl.setModifyWithSelect(true);
+    		this.editbarControl.deactivateControls();
+    		this.editbarControl.setActive(true);
     		
-    		if( this.editControls.toolbar 
-    		 && this.editControls.toolbar.div ){
-    			var $toolbar = $(this.editControls.toolbar.div);
-    			$toolbar.find('.olControlNavigationItemActive').attr('title',_loc('Scroll Map'));
-    			$toolbar.find('.olControlDrawFeaturePointItemInactive').attr('title',_loc('Add a point to the map'));
-    			$toolbar.find('.olControlDrawFeaturePathItemInactive').attr('title',_loc('Add a line to the map'));
-    			$toolbar.find('.olControlDrawFeaturePolygonItemInactive').attr('title',_loc('Add a polygon to the map'));
-    			$toolbar.find('.olControlNunaliitGazetteerItemInactive').attr('title',_loc('Add a feature to the map based on a gazetteer service'));
-    		};
+//    		this.editLayer.events.register('featureadded', null, this.editModeAddFeatureCallback);
+//    		this.editLayer.events.register('beforefeaturesadded', null, this.convertToMultiGeometry);
+//    		this.activateControl( this.editControls.addPoints );
+//    		this.activateControl( this.editControls.toolbar );
+//    		this.activateControl( this.editControls.modifyFeature );
+//    		
+//    		this.activateSelectFeatureControl();
+//    		
+//    		if( this.editControls.toolbar 
+//    		 && this.editControls.toolbar.div ){
+//    			var $toolbar = $(this.editControls.toolbar.div);
+//    			$toolbar.find('.olControlNavigationItemActive').attr('title',_loc('Scroll Map'));
+//    			$toolbar.find('.olControlDrawFeaturePointItemInactive').attr('title',_loc('Add a point to the map'));
+//    			$toolbar.find('.olControlDrawFeaturePathItemInactive').attr('title',_loc('Add a line to the map'));
+//    			$toolbar.find('.olControlDrawFeaturePolygonItemInactive').attr('title',_loc('Add a polygon to the map'));
+//    			$toolbar.find('.olControlNunaliitGazetteerItemInactive').attr('title',_loc('Add a feature to the map based on a gazetteer service'));
+//    		};
             
     	} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
     		this.editLayer.events.register('featureadded', null, this.editModeAddFeatureCallback);
@@ -531,7 +585,12 @@ class N2MapCanvas  {
    			this._installGeometryEditor(editFeature);
             
     	} else if( this.currentMode === this.modes.NAVIGATE ) {
-    		this.activateSelectFeatureControl();
+    		this.editbarControl.deactivateControls();
+    		this.editbarControl.setModifyWithSelect(false);
+    		this.editbarControl.setActive(true);
+    		this.editbarControl.deactivateModify();
+    		this.editbarControl.setVisible(false);
+    		//this.activateSelectFeatureControl();
     	};
 
     	// Broadcast mode change
@@ -689,7 +748,7 @@ class N2MapCanvas  {
 		//========================================
 		
 		
-		this.interactionSet.selectInteraction = new N2Select({map: customMap});
+		this.interactionSet.selectInteraction = new N2Select();
 
 //		------------------------------
 //		------------------------------ create and add layers
@@ -731,26 +790,7 @@ class N2MapCanvas  {
 				});
 		customMap.addControl(customLayerSwitcher);
 
-		var mainbar = new Bar();
-		customMap.addControl(mainbar);
-		mainbar.setPosition("top");
-		/* Nested toobar with one control activated at once */
-		var nested = new Bar ({ toggleOne: true, group:true });
-//		var selectInteraction= new SelectInteraction ();
-		mainbar.addControl (nested);
 
-
-		// Add selection tool (a toggle control with a select interaction)
-		var selectCtrl = new Toggle(
-				{	html: '<i class="fa fa-hand-pointer-o"></i>',
-					className: "select",
-					title: "Select",
-					interaction: this.interactionSet.selectInteraction,
-					active:true,
-					onToggle: function(active)
-					{
-					}
-				});
 		this.interactionSet.selectInteraction.on("clicked", (function(e) {
 			if (e.selected) {
 				this._retrivingDocsAndSendSelectedEvent(e.selected);
@@ -769,60 +809,6 @@ class N2MapCanvas  {
 			}
 		}).bind(this));
 		
-		nested.addControl(selectCtrl);
-
-		this.interactionSet.drawInteraction = new DrawInteraction
-		({	type: 'Point',
-			source: this.overlayLayers[0].getSource()
-		});
-		// Add editing tools
-//		var pedit = new Toggle(
-//				{	html: '<i class="fa fa-map-marker" ></i>',
-//					className: "edit",
-//					title: 'Point',
-//					interaction: this.interactionSet.drawInteraction,
-//					onToggle: function(active)
-//					{
-//					}
-//				});
-//		//nested.addControl ( pedit );
-		var pcluster = new Toggle({
-			html: '<i class="fa fa-map-marker" ></i>',
-			className: "cluster_toggle",
-			title: 'Toggle clustering',
-			interaction : undefined,
-			active: _this.isClustering ? true: false,
-			onToggle: function(active)
-			{
-				//TODO toggle cluster button only change the clusting-setting for first overlay-layer
-				if(active && !_this.isClustering){
-					let c_source =  _this.overlayLayers[0].getSource();
-					_this.overlayLayers[0].setSource(null);
-					let a_source = c_source.getSource();
-					let b_source = new N2DonutCluster({source: a_source});
-					b_source.setSource(a_source)
-					c_source = new N2SourceWithN2Intent({
-						interaction: _this.interactionSet.selectInteraction,
-						source: b_source,
-						dispatchService: _this.dispatchService
-					});	
-					_this.overlayLayers[0].setSource (c_source);
-					
-					_this.isClustering = true;
-
-				} else if (_this.isClustering && !active) {
-					let c_source =  _this.overlayLayers[0].getSource();
-					let b_source = c_source.getSource();
-					let a_source = b_source.getSource();
-					c_source.setSource(a_source);
-					b_source.setSource(null);
-					a_source.changed();
-					_this.isClustering = false;
-
-				}
-			}
-		})
-		mainbar.addControl (pcluster);
 
 		//Create editing layer
 		var editLayer = new VectorLayer({
@@ -833,60 +819,64 @@ class N2MapCanvas  {
 		this.overlayLayers.push(editLayer);
 		
 		
-		var edit = new EditBar({source: editLayer.getSource()});
-		customMap.addControl(edit);
+		this.editbarControl = new EditBar({
+			interactions: {
+				Select : this.interactionSet.selectInteraction
+			},
+			source: editLayer.getSource()});
+		customMap.addControl(this.editbarControl);
+		this.editbarControl.setVisible(false);
 		
-		
-	    edit.getInteraction('Select').on('select', function(e){
-	       // if (this.getFeatures().getLength()) {
-	      //    tooltip.setInfo('Drag points on features to edit...');
-	       // }
-	      //  else tooltip.setInfo();
-	      });
-	      edit.getInteraction('Select').on('change:active', function(e){
-	        //tooltip.setInfo('');
-	      });
-	      edit.getInteraction('ModifySelect').on('modifystart', function(e){
-	        //if (e.features.length===1) tooltip.setFeature(e.features[0]);
-	      });
-	      edit.getInteraction('ModifySelect').on('modifyend', function(e){
-	      //  tooltip.setFeature();
-	      });
-	      edit.getInteraction('DrawPoint').on('change:active', function(e){
-	      //  tooltip.setInfo(e.oldValue ? '' : 'Click map to place a point...');
-	      });
-	      edit.getInteraction('DrawLine').on(['change:active','drawend'], function(e){
-	       // tooltip.setFeature();
-	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing line...');
-	      });
-	      edit.getInteraction('DrawLine').on('drawstart', function(e){
-	       // tooltip.setFeature(e.feature);
-	       // tooltip.setInfo('Click to continue drawing line...');
-	      });
-	      edit.getInteraction('DrawPolygon').on('drawstart', function(e){
-	       // tooltip.setFeature(e.feature);
-	       // tooltip.setInfo('Click to continue drawing shape...');
-	      });
-	      edit.getInteraction('DrawPolygon').on(['change:active','drawend'], function(e){
-	       // tooltip.setFeature();
-	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
-	      });
-	      edit.getInteraction('DrawHole').on('drawstart', function(e){
-	       // tooltip.setFeature(e.feature);
-	       // tooltip.setInfo('Click to continue drawing hole...');
-	      });
-	      edit.getInteraction('DrawHole').on(['change:active','drawend'], function(e){
-	       // tooltip.setFeature();
-	       // tooltip.setInfo(e.oldValue ? '' : 'Click polygon to start drawing hole...');
-	      });
-	      edit.getInteraction('DrawRegular').on('drawstart', function(e){
-	       // tooltip.setFeature(e.feature);
-	       // tooltip.setInfo('Move and click map to finish drawing...');
-	      });
-	      edit.getInteraction('DrawRegular').on(['change:active','drawend'], function(e){
-	       // tooltip.setFeature();
-	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
-	      });
+//	    edit.getInteraction('Select').on('select', function(e){
+//	       // if (this.getFeatures().getLength()) {
+//	      //    tooltip.setInfo('Drag points on features to edit...');
+//	       // }
+//	      //  else tooltip.setInfo();
+//	      });
+//	      edit.getInteraction('Select').on('change:active', function(e){
+//	        //tooltip.setInfo('');
+//	      });
+//	      edit.getInteraction('ModifySelect').on('modifystart', function(e){
+//	        //if (e.features.length===1) tooltip.setFeature(e.features[0]);
+//	      });
+//	      edit.getInteraction('ModifySelect').on('modifyend', function(e){
+//	      //  tooltip.setFeature();
+//	      });
+//	      edit.getInteraction('DrawPoint').on('change:active', function(e){
+//	      //  tooltip.setInfo(e.oldValue ? '' : 'Click map to place a point...');
+//	      });
+//	      edit.getInteraction('DrawLine').on(['change:active','drawend'], function(e){
+//	       // tooltip.setFeature();
+//	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing line...');
+//	      });
+//	      edit.getInteraction('DrawLine').on('drawstart', function(e){
+//	       // tooltip.setFeature(e.feature);
+//	       // tooltip.setInfo('Click to continue drawing line...');
+//	      });
+//	      edit.getInteraction('DrawPolygon').on('drawstart', function(e){
+//	       // tooltip.setFeature(e.feature);
+//	       // tooltip.setInfo('Click to continue drawing shape...');
+//	      });
+//	      edit.getInteraction('DrawPolygon').on(['change:active','drawend'], function(e){
+//	       // tooltip.setFeature();
+//	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
+//	      });
+//	      edit.getInteraction('DrawHole').on('drawstart', function(e){
+//	       // tooltip.setFeature(e.feature);
+//	       // tooltip.setInfo('Click to continue drawing hole...');
+//	      });
+//	      edit.getInteraction('DrawHole').on(['change:active','drawend'], function(e){
+//	       // tooltip.setFeature();
+//	       // tooltip.setInfo(e.oldValue ? '' : 'Click polygon to start drawing hole...');
+//	      });
+//	      edit.getInteraction('DrawRegular').on('drawstart', function(e){
+//	       // tooltip.setFeature(e.feature);
+//	       // tooltip.setInfo('Move and click map to finish drawing...');
+//	      });
+//	      edit.getInteraction('DrawRegular').on(['change:active','drawend'], function(e){
+//	       // tooltip.setFeature();
+//	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
+//	      });
 		
 		
 		
@@ -1007,11 +997,11 @@ class N2MapCanvas  {
 					}
 					var clsOpt = Object.assign({}, overlayInfo.clustering
 							,{source: alphasource});
-					betaSource = new N2DonutCluster(clsOpt);
+					betaSource = new N2Cluster(clsOpt);
 				}
 				var charlieSource = new N2SourceWithN2Intent({
 					interaction: _this.interactionSet.selectInteraction,
-					source: betaSource,
+					source: alphasource,
 					dispatchService: _this.dispatchService
 				});
 				var vectorLayer = new VectorLayer({
@@ -1052,52 +1042,7 @@ class N2MapCanvas  {
 	
 		function StyleFn(feature, resolution){
 
-			var DONETESTCACHE = {};
-			var RANDOMNAME = ["EU", "NA", "ASIA", "AF"];
-			var RANDOMCOLOR = ["#ff0","#0ff","#0f0","#f0f","#f00","#00f"];
 			var f = feature;
-
-//			if(f.getGeometry().getType() === "Point"){
-//				
-//				var ldata =[];
-//				let e = Math.round(10*Math.random());
-//				let thisradius = 0;
-//				for(var k =0;k<e;k++){
-//					let dur = Math.round(10*Math.random());
-//					let tyr = {
-//							name: RANDOMNAME[k % 4],
-//							opacity: Math.random(),
-//							strokeColor: RANDOMCOLOR[k % 6]
-//					};
-//					let entry = {
-//							duration : dur,
-//							type : tyr
-//					};
-//					ldata.push(entry);
-//					thisradius += entry.duration;
-//				}
-//				
-//
-//
-//				let donutScaleFactor = 5;
-//				let thisStyle = new Style({
-//					image: new customPointStyle({
-//						type: "treeRing",
-//						radius : thisradius* donutScaleFactor,
-//						data: ldata,
-//						donutScaleFactor: donutScaleFactor,
-//						animation: false,
-//						stroke: new Stroke({
-//							color: "#000",
-//							width: 2
-//						})
-//					})
-//				})
-//	
-//				return [thisStyle];
-//
-//			}
-
 
 			var geomType = f.getGeometry()._n2Type;
 			if ( !geomType ) {
@@ -1117,7 +1062,6 @@ class N2MapCanvas  {
 				}
 			}
 			f.n2_geometry = geomType;
-
 			//Deal with n2_doc tag
 			var data = f.data;
 			if (f
@@ -1500,6 +1444,14 @@ class N2MapCanvas  {
 		}
 
 
+	}
+	_getDispatchService(){
+		var d = null;
+		if( this.options.directory ) {
+			d = this.options.directory.dispatchService;
+		};
+		
+		return d;
 	}
 	_computeFeatureOriginalBboxForMapProjection(f, mapProj) {
 		// Each feature has a projection stored at f.n2GeomProj

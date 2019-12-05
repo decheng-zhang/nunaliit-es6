@@ -61,7 +61,7 @@ class N2ModelSource extends Vector {
 
 			//this.dispatchService.register(DH,'modelGetInfo',f);
 			//this.dispatchService.register(DH,'modelStateUpdated',f);
-			//this.dispatchService.register(DH,'simplifiedGeometryReport',f);
+			this.dispatchService.register(DH,'simplifiedGeometryReport',f);
 		};
 		
 //		var isLoading = this.modelObserver.isLoading();
@@ -247,11 +247,11 @@ class N2ModelSource extends Vector {
 
 
 
-//		this.dispatchService.send(DH,{
-//			type: 'simplifiedGeometryRequest'
-//				,geometriesRequested: geometriesRequested
-//				,requester: this.sourceId
-//		});
+		this.dispatchService.send(DH,{
+			type: 'simplifiedGeometryRequest'
+				,geometriesRequested: geometriesRequested
+				,requester: this.sourceId
+		});
 
 		this._reloadAllFeatures();
 		
