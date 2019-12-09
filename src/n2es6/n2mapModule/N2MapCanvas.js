@@ -34,6 +34,7 @@ import {transform, getTransform, transformExtent, get as getProjection} from 'ol
 import {default as Projection} from 'ol/proj/Projection.js';
 import Tile from 'ol/layer/Tile.js';
 import WMTSTileGrid from 'ol/tilegrid/WMTS.js';
+import WKT from 'ol/format/WKT';
 
 import {click as clickCondition} from 'ol/events/condition.js';
 import mouseWheelZoom from 'ol/interaction/MouseWheelZoom.js';
@@ -198,7 +199,7 @@ class N2MapCanvas  {
 					_this._hoverFeaturePopup(feature, layer);
 				}
 				,onStartClick: function(feature, mapFeature) {
-					_this.initAndDisplayClickedPlaceInfo(feature);
+					//_this.initAndDisplayClickedPlaceInfo(feature);
 				}
 				,onEndClick: function(feature) {
 				}
@@ -213,7 +214,7 @@ class N2MapCanvas  {
 					_this._hoverFeature(feature, layer);
 					_this._hoverFeaturePopup(feature, layer);
 				}
-				,onStartClick: function(feature, mapFeature) {
+				,onStartClick: function(mapFeature) {
 
 					var editAllowed = true;
 					if( mapFeature.cluster && mapFeature.cluster.length > 1 ) {
@@ -224,7 +225,7 @@ class N2MapCanvas  {
 					if( editAllowed ) {
 			    		_this._dispatch({
 			    			type: 'editInitiate'
-			    			,doc: feature.data
+			    			,doc: mapFeature.data
 			    		});
 					};
 				}
@@ -237,7 +238,7 @@ class N2MapCanvas  {
 					
 					var mapProj = feature.layer.map.getProjectionObject();
 
-		    		_this._dispatch({
+		    		_this.dispatchService.send(DH, {
 		    			type: 'editCreateFromGeometry'
 		    			,geometry: feature.geometry.clone()
 		    			,projection: mapProj
@@ -794,6 +795,13 @@ class N2MapCanvas  {
 		this.interactionSet.selectInteraction.on("clicked", (function(e) {
 			if (e.selected) {
 				this._retrivingDocsAndSendSelectedEvent(e.selected);
+				if ( this.currentMode.onStartClick ) {
+					if ( e.selected.length === 1 ){
+						var feature = e.selected[0];
+						this.currentMode.onStartClick(feature);
+					}
+					
+				}
 			}
 		}).bind(this));
 
@@ -827,53 +835,67 @@ class N2MapCanvas  {
 		customMap.addControl(this.editbarControl);
 		this.editbarControl.setVisible(false);
 		
-//	    edit.getInteraction('Select').on('select', function(e){
+//	    editbarControl.getInteraction('Select').on('select', function(e){
 //	       // if (this.getFeatures().getLength()) {
 //	      //    tooltip.setInfo('Drag points on features to edit...');
 //	       // }
 //	      //  else tooltip.setInfo();
 //	      });
-//	      edit.getInteraction('Select').on('change:active', function(e){
+//	      editbarControl.getInteraction('Select').on('change:active', function(e){
 //	        //tooltip.setInfo('');
-//	      });
-//	      edit.getInteraction('ModifySelect').on('modifystart', function(e){
-//	        //if (e.features.length===1) tooltip.setFeature(e.features[0]);
-//	      });
-//	      edit.getInteraction('ModifySelect').on('modifyend', function(e){
-//	      //  tooltip.setFeature();
-//	      });
-//	      edit.getInteraction('DrawPoint').on('change:active', function(e){
+//	      });	
+		  this.editbarControl.getInteraction('ModifySelect').on('modifystart', function(e){
+	    	  //console.log('modifyied features:', e.features);
+	        //if (e.features.length===1) tooltip.setFeature(e.features[0]);
+	      });
+	      this.editbarControl.getInteraction('ModifySelect').on('modifyend', onModifyEnd);
+	      
+	      function onModifyEnd(e){
+	    	  var features = e.features;
+	    	  for (var i=0,e=features.length; i<e; i++){
+	    		  var geometry = features[i].getGeometry();
+	          	_this.dispatchService.send(DH,{
+	        		type: 'editGeometryModified'
+	        		,docId: features[i].fid
+	        		,geom: geometry
+	        		,proj: new Projection({code: 'EPSG:3857'})
+	        		,_origin: _this
+	        	});
+	    	  }
+	    	  //  tooltip.setFeature();
+	      };
+//	      editbarControl.getInteraction('DrawPoint').on('change:active', function(e){
 //	      //  tooltip.setInfo(e.oldValue ? '' : 'Click map to place a point...');
 //	      });
-//	      edit.getInteraction('DrawLine').on(['change:active','drawend'], function(e){
+//	      editbarControl.getInteraction('DrawLine').on(['change:active','drawend'], function(e){
 //	       // tooltip.setFeature();
 //	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing line...');
 //	      });
-//	      edit.getInteraction('DrawLine').on('drawstart', function(e){
+//	      editbarControl.getInteraction('DrawLine').on('drawstart', function(e){
 //	       // tooltip.setFeature(e.feature);
 //	       // tooltip.setInfo('Click to continue drawing line...');
 //	      });
-//	      edit.getInteraction('DrawPolygon').on('drawstart', function(e){
+//	      editbarControl.getInteraction('DrawPolygon').on('drawstart', function(e){
 //	       // tooltip.setFeature(e.feature);
 //	       // tooltip.setInfo('Click to continue drawing shape...');
 //	      });
-//	      edit.getInteraction('DrawPolygon').on(['change:active','drawend'], function(e){
+//	      editbarControl.getInteraction('DrawPolygon').on(['change:active','drawend'], function(e){
 //	       // tooltip.setFeature();
 //	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
 //	      });
-//	      edit.getInteraction('DrawHole').on('drawstart', function(e){
+//	      editbarControl.getInteraction('DrawHole').on('drawstart', function(e){
 //	       // tooltip.setFeature(e.feature);
 //	       // tooltip.setInfo('Click to continue drawing hole...');
 //	      });
-//	      edit.getInteraction('DrawHole').on(['change:active','drawend'], function(e){
+//	      editbarControl.getInteraction('DrawHole').on(['change:active','drawend'], function(e){
 //	       // tooltip.setFeature();
 //	       // tooltip.setInfo(e.oldValue ? '' : 'Click polygon to start drawing hole...');
 //	      });
-//	      edit.getInteraction('DrawRegular').on('drawstart', function(e){
+//	      editbarControl.getInteraction('DrawRegular').on('drawstart', function(e){
 //	       // tooltip.setFeature(e.feature);
 //	       // tooltip.setInfo('Move and click map to finish drawing...');
 //	      });
-//	      edit.getInteraction('DrawRegular').on(['change:active','drawend'], function(e){
+//	      editbarControl.getInteraction('DrawRegular').on(['change:active','drawend'], function(e){
 //	       // tooltip.setFeature();
 //	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
 //	      });
@@ -890,6 +912,13 @@ class N2MapCanvas  {
 	}
 
 
+	
+	_dispatch(m){
+		var dispatcher = this._getDispatchService();
+		if( dispatcher ) {
+			dispatcher.send(DH,m);
+		};
+	}
 	_retrivingDocsAndPaintPopup(feature, mapBrowserEvent){
 		var _this = this;
 		if (_this.popupOverlay) {
@@ -1535,7 +1564,8 @@ nunaliit2.n2es6 = {
 		ol_proj_Projection : Projection,
 		ol_proj_transformExtent : transformExtent,
 		ol_extent_extend : extend,
-		ol_extent_isEmpty : isEmpty
+		ol_extent_isEmpty : isEmpty,
+		ol_format_WKT: WKT
 };
 
 nunaliit2.canvasMap = {

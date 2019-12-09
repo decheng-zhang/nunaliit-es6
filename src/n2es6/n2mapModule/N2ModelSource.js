@@ -285,6 +285,7 @@ class N2ModelSource extends Vector {
 		//	r =  b.doc._ldata.start || 0;
 		//	return l-r;
 		//});
+		var proj_4326 = new Projection({code: 'EPSG:4326'});
 		for(var docId in this.infoByDocId){
 			
 			var docInfo = this.infoByDocId[docId];
@@ -304,12 +305,18 @@ class N2ModelSource extends Vector {
 				var geometry = wktFormat.readGeometryFromText(wkt);
 				geometry.transform('EPSG:4326', _this.mapProjCode);
 				var feature = new Feature();
-				feature.setGeometry(geometry);
+				try {
+					feature.setGeometry(geometry);
+				}catch (err){
+					$n2.log('Error while setGeometry', err);
+					alert (err);
+				}
+				
 				if (docId && geometry) {
 					feature.setId(docId);
 					feature.data = doc;
 					feature.fid =  docId;
-					feature.n2GeomProj = new Projection({code: 'EPSG:4326'}) ;
+					feature.n2GeomProj = proj_4326 ;
 					features.push(feature);
 				} else {
 					$n2.log('Invalid feature', doc);
