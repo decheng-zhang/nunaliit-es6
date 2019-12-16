@@ -22,6 +22,7 @@ import {ol_coordinate_dist2d, ol_coordinate_equal} from "ol-ext/geom/GeomUtils";
 import {boundingExtent as ol_extent_boundingExtent} from 'ol/extent'
 import {buffer as ol_extent_buffer} from 'ol/extent'
 import {altKeyOnly as ol_events_condition_altKeyOnly} from 'ol/events/condition'
+import {platformModifierKeyOnly as ol_events_condition_platformModifierKeyOnly} from 'ol/events/condition' 
 import {primaryAction as ol_events_condition_primaryAction} from 'ol/events/condition'
 import {always as ol_events_condition_always} from 'ol/events/condition'
 
@@ -106,7 +107,7 @@ var ol_interaction_ModifyFeature = function(options){
   this.filterSplit_ = options.filter || function(){ return true; };
 
   this._condition = options.condition || ol_events_condition_primaryAction;
-  this._deleteCondition = options.deleteCondition || ol_events_condition_altKeyOnly;
+  this._deleteCondition = options.deleteCondition || ol_events_condition_platformModifierKeyOnly;
   this._insertVertexCondition = options.insertVertexCondition || ol_events_condition_always;
 
   // Default style

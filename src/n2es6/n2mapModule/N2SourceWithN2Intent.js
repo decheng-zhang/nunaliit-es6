@@ -95,6 +95,7 @@ class N2SourceWithN2Intent extends VectorSource {
 			 +"this custom source");
 		}
 		//-------------------------
+		this.interactionMode = "NAVIGATE"; 
 		this.sourceChangeKey_ = null;
 	    if (options.source){
 	    	this.source = options.source;
@@ -140,7 +141,9 @@ class N2SourceWithN2Intent extends VectorSource {
 		    }
 		    
 	}
-	
+	onInterationModeChanged( modeName ){
+		this.interactionMode = modeName;
+	}
 	setSource(source){
 		if (source){
 			this.source = source;
@@ -461,30 +464,54 @@ class N2SourceWithN2Intent extends VectorSource {
 		let clickedAgain = false;
 		clickedAgain = (selected && selected.fid 
 				&& this.clickedInfo.selectedId === selected.fid );
-		if (!this.toggleClick && clickedAgain){
-			return false;
-		}
-		this._endClicked();
 		
-		if (this.toggleClick && clickedAgain ){
-			this._dispatch({type: 'userUnselect',
-							docId: selected.fid
-							});
-			return false;
-		} else if ( selected 
-				&& selected.fid ) {
-			this.clickedInfo.features = [selected];
-
-			this.clickedInfo.fids = {};
-			this.clickedInfo.fids[selected.fid] = { clicked: true };
-			this.clickedInfo.selectedId = selected.fid;
+		if (this.interactionMode === 'NAVIGATE'){
+			if (!this.toggleClick && clickedAgain){
+				return false;
+			}
+			this._endClicked();
 			
-			selected.isClicked = true;
-			if( this.interaction_.onStartClick ) {
-				this.interaction_.onStartClick(selected);
-			};
+			if (this.toggleClick && clickedAgain ){
+				this._dispatch({type: 'userUnselect',
+								docId: selected.fid
+								});
+				return false;
+			} else if ( selected 
+					&& selected.fid ) {
+				
+				//clicked new feature
+				this.clickedInfo.features = [selected];
+
+				this.clickedInfo.fids = {};
+				this.clickedInfo.fids[selected.fid] = { clicked: true };
+				this.clickedInfo.selectedId = selected.fid;
+				
+				selected.isClicked = true;
+
+			}
+			return true;
+		} else {
+			this._endClicked();
+			
+			if ( clickedAgain ){
+				//this._dispatch({type: 'userUnselect',
+//								docId: selected.fid
+//								});
+			} else if ( selected 
+					&& selected.fid ) {
+				
+				//clicked new feature
+				this.clickedInfo.features = [selected];
+
+				this.clickedInfo.fids = {};
+				this.clickedInfo.fids[selected.fid] = { clicked: true };
+				this.clickedInfo.selectedId = selected.fid;
+				
+				selected.isClicked = true;
+			}
+			return true;
 		}
-		return true;
+		
 	}
 	//clear up for click
 	_endClicked() {
