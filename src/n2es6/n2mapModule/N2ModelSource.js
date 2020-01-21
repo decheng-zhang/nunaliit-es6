@@ -83,6 +83,7 @@ class N2ModelSource extends Vector {
 	}
 
 	refresh(){
+		this._reloadAllFeatures();
 		//this.changed();
 	}
 	_modelSourceUpdated (state) {
@@ -131,6 +132,7 @@ class N2ModelSource extends Vector {
 			});
 		};
 		
+		this._refreshSimplifiedGeometries();
 		this._reloadAllFeatures();
 		
 	}
@@ -257,6 +259,79 @@ class N2ModelSource extends Vector {
 		
 	}
 
+	_refreshSimplifiedGeometries (){
+		var _this = this;
+		var m = {
+				type: 'resolutionRequest'
+				,proj: undefined
+				,resolution: undefined
+			}
+		this.dispatchService.synchronousCall(DH,m);
+		if( m.resolution ){
+			var targetRes = m.resolution;
+			var proj = m.proj;
+			var res = this._getResolutionInProjection(targetRes, proj);
+		
+			var geometriesRequested = [];
+
+			for(let docId in this.infoByDocId){
+				var docInfo = this.infoByDocId[docId];
+
+				var doc = docInfo.doc;
+				if( doc && doc.nunaliit_geom
+						&& doc.nunaliit_geom.simplified
+						&& doc.nunaliit_geom.simplified.resolutions ){
+					var bestAttName = undefined;
+					var bestResolution = undefined;
+					for(let attName in doc.nunaliit_geom.simplified.resolutions){
+						var attRes = parseFloat(doc.nunaliit_geom.simplified.resolutions[attName]);
+						if( attRes < res ){
+							if( typeof bestResolution === 'undefined' ){
+								bestResolution = attRes;
+								bestAttName = attName;
+							} else if( attRes > bestResolution ){
+								bestResolution = attRes;
+								bestAttName = attName;
+							};
+						};
+					};
+
+					// At this point, if bestResolution is set, then this is the geometry we should
+					// be displaying
+					if( undefined !== bestResolution ){
+						docInfo.simplifiedName = bestAttName;
+						docInfo.simplifiedResolution = bestResolution;
+					};
+
+					if( docInfo.simplifiedName ) {
+						// There is a simplification needed, do I have it already?
+						var wkt = undefined;
+						if( docInfo.simplifications ){
+							wkt = docInfo.simplifications[docInfo.simplifiedName];
+						};
+
+						// If I do not have it, request it
+						if( !wkt ){
+							var geomRequest = {
+									id: docId
+									,attName: docInfo.simplifiedName
+									,doc: doc
+							};
+							geometriesRequested.push(geomRequest);
+						};
+					};
+				};
+			};
+
+
+
+			this.dispatchService.send(DH,{
+				type: 'simplifiedGeometryRequest'
+					,geometriesRequested: geometriesRequested
+					,requester: this.sourceId
+			});
+		}
+	}
 	_getResolutionInProjection(targetResolution, proj){
 
 		if( proj.getCode() !== 'EPSG:4326' ){

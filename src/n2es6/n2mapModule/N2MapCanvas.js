@@ -147,7 +147,8 @@ class N2MapCanvas  {
 
 		this.center = undefined;
 		this.resolution = undefined;
-
+		this.proj = undefined;
+		
 		this.lastTime = null;
 		this.initialTime = null;
 		this.endIdx = 0;
@@ -164,6 +165,8 @@ class N2MapCanvas  {
 		this.popupOverlay = undefined;
 		this.n2MapStyles = new N2MapStyles();
 		this.editbarControl = null;
+		
+		this.editLayerSource = undefined;
 		this.refreshCallback = null;
 
 		if ( this.customService ){
@@ -184,7 +187,9 @@ class N2MapCanvas  {
 		this.currentInteract = null;
 		this.n2intentWrapper = null;
 		this._processOverlay(opts.overlays);
-		
+		this.editFeatureInfo = {
+				original: {}
+			};
 		
 		// MODES
 		
@@ -296,8 +301,11 @@ class N2MapCanvas  {
 			this.dispatchService.register(DH, 'time_interval_change', f);
 			this.dispatchService.register(DH, 'focusOn', f);
 			this.dispatchService.register(DH, 'mapRefreshCallbackRequest', f);
+			this.dispatchService.register(DH, 'resolutionRequest', f);
 			
 			this.dispatchService.register(DH, 'editInitiate', f);
+			this.dispatchService.register(DH, 'editClosed', f);
+			
 		};
 
 		$n2.log(this._classname,this);
@@ -498,10 +506,12 @@ class N2MapCanvas  {
 			this._switchMapMode(this.modes.NAVIGATE);
 			
 		} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
+			//this.editLayerSource.clear();
 		//	this._cancelEditFeatureMode();
 			
 		} else if( this.currentMode === this.modes.EDIT_FEATURE ) {
-		//	this._cancelEditFeatureMode();
+			this.editLayerSource.clear();
+			//	this._cancelEditFeatureMode();
 		};
 		return false;
 	};
@@ -513,31 +523,6 @@ class N2MapCanvas  {
     		return;
     	};
     	
-    	// Remove current mode
-//    	if( this.currentMode === this.modes.ADD_OR_SELECT_FEATURE ) {
-//    		this.deactivateControl( this.editControls.addPoints );
-//    		this.deactivateControl( this.editControls.toolbar );
-//    		this.deactivateControl( this.editControls.modifyFeature );
-//    		this.editLayer.events.unregister('featureadded', null, this.editModeAddFeatureCallback);
-//            this.editLayer.events.unregister('beforefeaturesadded', null, this.convertToMultiGeometry);
-//
-//            this.deactivateSelectFeatureControl();
-//            
-//    	} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
-//    		this.deactivateControl( this.editControls.addPoints );
-//    		this.deactivateControl( this.editControls.toolbar );
-//    		this.deactivateControl( this.editControls.modifyFeature );
-//    		this.editLayer.events.unregister('featureadded', null, this.editModeAddFeatureCallback);
-//            this.editLayer.events.unregister('beforefeaturesadded', null, this.convertToMultiGeometry);
-//
-//            this.deactivateSelectFeatureControl();
-//            
-//    	} else if( this.currentMode === this.modes.EDIT_FEATURE ) {
-//    		this._removeGeometryEditor();
-//            
-//    	} else if( this.currentMode === this.modes.NAVIGATE ) {
-//    		this.deactivateSelectFeatureControl();
-//    	};
 
     	// Apply new mode
     	this.currentMode = mode;
@@ -553,44 +538,17 @@ class N2MapCanvas  {
     		this.editbarControl.deactivateControls();
     		this.editbarControl.setActive(true);
     		
-//    		this.editLayer.events.register('featureadded', null, this.editModeAddFeatureCallback);
-//    		this.editLayer.events.register('beforefeaturesadded', null, this.convertToMultiGeometry);
-//    		this.activateControl( this.editControls.addPoints );
-//    		this.activateControl( this.editControls.toolbar );
-//    		this.activateControl( this.editControls.modifyFeature );
-//    		
-//    		this.activateSelectFeatureControl();
-//    		
-//    		if( this.editControls.toolbar 
-//    		 && this.editControls.toolbar.div ){
-//    			var $toolbar = $(this.editControls.toolbar.div);
-//    			$toolbar.find('.olControlNavigationItemActive').attr('title',_loc('Scroll Map'));
-//    			$toolbar.find('.olControlDrawFeaturePointItemInactive').attr('title',_loc('Add a point to the map'));
-//    			$toolbar.find('.olControlDrawFeaturePathItemInactive').attr('title',_loc('Add a line to the map'));
-//    			$toolbar.find('.olControlDrawFeaturePolygonItemInactive').attr('title',_loc('Add a polygon to the map'));
-//    			$toolbar.find('.olControlNunaliitGazetteerItemInactive').attr('title',_loc('Add a feature to the map based on a gazetteer service'));
-//    		};
             
     	} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
-    		this.editLayer.events.register('featureadded', null, this.editModeAddFeatureCallback);
-    		this.editLayer.events.register('beforefeaturesadded', null, this.convertToMultiGeometry);
-    		this.activateControl( this.editControls.addPoints );
-    		this.activateControl( this.editControls.toolbar );
-    		this.activateControl( this.editControls.modifyFeature );
-    		
-    		if( this.editControls.toolbar 
-    		 && this.editControls.toolbar.div ){
-    			var $toolbar = $(this.editControls.toolbar.div);
-    			$toolbar.find('.olControlNavigationItemActive').attr('title',_loc('Scroll Map'));
-    			$toolbar.find('.olControlDrawFeaturePointItemInactive').attr('title',_loc('Add a point to the map'));
-    			$toolbar.find('.olControlDrawFeaturePathItemInactive').attr('title',_loc('Add a line to the map'));
-    			$toolbar.find('.olControlDrawFeaturePolygonItemInactive').attr('title',_loc('Add a polygon to the map'));
-    			$toolbar.find('.olControlNunaliitGazetteerItemInactive').attr('title',_loc('Add a feature to the map based on a gazetteer service'));
-    		};
+
             
     	} else if( this.currentMode === this.modes.EDIT_FEATURE ) {
     		//var editFeature = opts.feature;
    			//this._installGeometryEditor(editFeature);
+    		this.editbarControl.deactivateControls();
+    		this.editbarControl.setModifyWithSelect(true);
+    		this.editbarControl.setActive(true);
+    		
             
     	} else if( this.currentMode === this.modes.NAVIGATE ) {
     		this.editbarControl.deactivateControls();
@@ -598,6 +556,7 @@ class N2MapCanvas  {
     		this.editbarControl.setActive(true);
     		this.editbarControl.deactivateModify();
     		this.editbarControl.setVisible(false);
+    		this.editLayerSource.clear();
     		//this.activateSelectFeatureControl();
     	};
 
@@ -724,9 +683,32 @@ class N2MapCanvas  {
 					new Projection({code: 'EPSG:3857'})
 			);
 			customMap.once('postrender', function(evt){
+				let res = evt.frameState.viewState.resolution;
+				let proj = _this.n2View.getProjection();
+				let zoom = evt.frameState.viewState.zoom;
+				let center = evt.frameState.viewState.center;
+				_this.resolution = res;
+				var extent = olView.calculateExtent();
+				_this.sources.forEach(function(source){
+					source.onChangedResolution(res,proj, extent);
+				});
+				
+				var coor_string = center.join(',') + ',' + zoom + 'z';
+				_this.dispatchService.send(DH, {
+					type: 'viewChanged'
+					,coordination: coor_string
+					,_suppressSetHash : _this._suppressSetHash
+				});
 				customMap.getView().fit(boundInProj, {size:customMap.getSize()});
 			});
 		}
+		//Getting the resolution whenever a frame finish rendering;
+		customMap.on('postrender', function(evt){
+			let res = evt.frameState.viewState.resolution;
+			let proj = _this.n2View.getProjection();
+			_this.resolution = res;
+			_this.proj = proj;
+		});
 		//=======================================
 		
 		//Listening on the map move and resolution changes.
@@ -740,6 +722,7 @@ class N2MapCanvas  {
 				let zoom = evt.frameState.viewState.zoom;
 				let center = evt.frameState.viewState.center;
 				_this.resolution = res;
+				_this.proj = proj;
 				var extent = olView.calculateExtent();
 				_this.sources.forEach(function(source){
 					source.onChangedResolution(res,proj, extent);
@@ -837,12 +820,14 @@ class N2MapCanvas  {
 		
 
 		//Create editing layer
+		this.editLayerSource = new VectorSource();
 		var editLayer = new VectorLayer({
 			title: 'Edit',
-			source: new VectorSource() 
+			source: this.editLayerSource 
 		});
-
+		customMap.addLayer(editLayer);
 		this.overlayLayers.push(editLayer);
+		
 		
 		
 		this.editbarControl = new EditBar({
@@ -853,7 +838,8 @@ class N2MapCanvas  {
 		customMap.addControl(this.editbarControl);
 		this.editbarControl.setVisible(false);
 		this.editbarControl.getInteraction('Select').on('clicked', function(e){
-			if (_this.currentMode === _this.modes.ADD_OR_SELECT_FEATURE ){
+			if (_this.currentMode === _this.modes.ADD_OR_SELECT_FEATURE 
+			|| _this.currentMode === _this.modes.EDIT_FEATURE ){
 				return false;
 			}
 		});	
@@ -879,27 +865,29 @@ class N2MapCanvas  {
 	    	  //  tooltip.setFeature();
 	    	  return false;
 	      };
-//	      editbarControl.getInteraction('DrawPoint').on('change:active', function(e){
+	      this.editbarControl.getInteraction('DrawPoint').on('drawend', function(e){
+	    	  _this.editModeAddFeatureCallback( evt ); 
+	      });
 //	      //  tooltip.setInfo(e.oldValue ? '' : 'Click map to place a point...');
 //	      });
-//	      editbarControl.getInteraction('DrawLine').on(['change:active','drawend'], function(e){
-//	       // tooltip.setFeature();
+	      this.editbarControl.getInteraction('DrawLine').on('drawend', function(evt){
+	    	  _this.editModeAddFeatureCallback( evt );
+	      });
+	      // tooltip.setFeature();
 //	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing line...');
 //	      });
 //	      editbarControl.getInteraction('DrawLine').on('drawstart', function(e){
 //	       // tooltip.setFeature(e.feature);
 //	       // tooltip.setInfo('Click to continue drawing line...');
 //	      });
-//	      editbarControl.getInteraction('DrawPolygon').on('drawstart', function(e){
+//	      this.editbarControl.getInteraction('DrawPolygon').on('drawstart', function(e){
+//	    	  e.stopPropagation();
 //	       // tooltip.setFeature(e.feature);
 //	       // tooltip.setInfo('Click to continue drawing shape...');
 //	      });
 	      this.editbarControl.getInteraction('DrawPolygon').on('drawend', function(evt){
 	       
-	  		var feature = evt.feature;
-			var previousMode = _this.currentMode;
-			_this.switchToEditFeatureMode(feature.fid, feature);
-			previousMode.featureAdded(feature);// tooltip.setFeature();
+	    	_this.editModeAddFeatureCallback( evt );
 	       // tooltip.setInfo(e.oldValue ? '' : 'Click map to start drawing shape...');
 	      });
 //	      editbarControl.getInteraction('DrawHole').on('drawstart', function(e){
@@ -930,11 +918,14 @@ class N2MapCanvas  {
 		//_changeToImageRender();
 	}
 
+	onMoveendCallback(evt){
+		
+	}
 
-	editModeAddFeatureCallback(e){
+	editModeAddFeatureCallback(evt){
 		var feature = evt.feature;
-		var previousMode = _this.currentMode;
-		_this.switchToEditFeatureMode(feature.fid, feature);
+		var previousMode = this.currentMode;
+		this.switchToEditFeatureMode(feature.fid, feature);
 		previousMode.featureAdded(feature);
 	}
 	_dispatch(m){
@@ -1404,8 +1395,6 @@ class N2MapCanvas  {
 						overlayLayer.getSource().refresh();
 
 				});
-				//var viewExt = olmap.getView().calculateExtent(olmap.getSize());
-				//olmap.getView().fit(viewExt);
 				}
 		} else if ( 'mapRefreshCallbackRequest' === type ){
 			//This refresh only execute the last invoke,
@@ -1429,39 +1418,36 @@ class N2MapCanvas  {
 			var addGeometryMode = true;
 			
 			if( fid ){
-				var features = this._getMapFeaturesIncludingFid(fid);
-				
-				if( features.length > 0 ){
-					feature = features[0];
-				};
-				
-				if( feature ) {
-					this._centerMapOnFeature(feature);
-					addGeometryMode = false;
-					
-				} else {
-					// must center map on feature, if feature contains
-					// a geometry
-					if( m.doc 
-					 && m.doc.nunaliit_geom 
-					 && m.doc.nunaliit_geom.bbox 
-					 && m.doc.nunaliit_geom.bbox.length >= 4 ) {
-						var bbox = m.doc.nunaliit_geom.bbox;
-						var x = (bbox[0] + bbox[2]) / 2;
-						var y = (bbox[1] + bbox[3]) / 2;
-						this._centerMapOnXY(x, y, 'EPSG:4326');
-
-						addGeometryMode = false;
-					};
-				};
+				var feature = this._getMapFeaturesIncludingFid(fid);
+			
+				//TODO: center feature on map;
+//				if( feature ) {
+//					this._centerMapOnFeature(feature);
+//					addGeometryMode = false;
+//					
+//				} else {
+//					// must center map on feature, if feature contains
+//					// a geometry
+//					if( m.doc 
+//					 && m.doc.nunaliit_geom 
+//					 && m.doc.nunaliit_geom.bbox 
+//					 && m.doc.nunaliit_geom.bbox.length >= 4 ) {
+//						var bbox = m.doc.nunaliit_geom.bbox;
+//						var x = (bbox[0] + bbox[2]) / 2;
+//						var y = (bbox[1] + bbox[3]) / 2;
+//						this._centerMapOnXY(x, y, 'EPSG:4326');
+//
+//						addGeometryMode = false;
+//					};
+//				};
 			};
 			
 			// Remove feature from map
-			this.infoLayers.forEach(function(layerInfo){
-				if( layerInfo.featureStrategy ){
-					layerInfo.featureStrategy.setEditedFeatureIds([fid]);
-				};
-			});
+//			this.infoLayers.forEach(function(layerInfo){
+//				if( layerInfo.featureStrategy ){
+//					layerInfo.featureStrategy.setEditedFeatureIds([fid]);
+//				};
+//			});
 			
 			this.editFeatureInfo = {};
     		this.editFeatureInfo.fid = fid;
@@ -1470,23 +1456,23 @@ class N2MapCanvas  {
 			};
 	    	var effectiveFeature = null;
 			if( feature ){
-		    	// Remove feature from current layer
-		    	var featureLayer = feature.layer;
-
-		    	// Compute the actual underlying feature
-		    	if( fid === feature.fid ){
-		        	effectiveFeature = feature;
-		        	
-		    	} else if( feature.cluster ){
-		    		for(var i=0,e=feature.cluster.length; i<e; ++i){
-		    			if( fid === feature.cluster[i].fid ){
-		    	    		effectiveFeature = feature.cluster[i];
-		    			};
-		    		};
-		    	};
-		    	
-		    	this.editFeatureInfo.original.layer = featureLayer;
-		    	this.editFeatureInfo.original.feature = effectiveFeature;
+//		    	// Remove feature from current layer
+//		    	var featureLayer = feature.layer;
+//
+//		    	// Compute the actual underlying feature
+//		    	if( fid === feature.fid ){
+//		        	effectiveFeature = feature;
+//		        	
+//		    	} else if( feature.cluster ){
+//		    		for(var i=0,e=feature.cluster.length; i<e; ++i){
+//		    			if( fid === feature.cluster[i].fid ){
+//		    	    		effectiveFeature = feature.cluster[i];
+//		    			};
+//		    		};
+//		    	};
+//		    	
+		    	//this.editFeatureInfo.original.layer = featureLayer;
+		    	//this.editFeatureInfo.original.feature = effectiveFeature;
 			};
 			
 			if( addGeometryMode ){
@@ -1500,6 +1486,65 @@ class N2MapCanvas  {
 				this.switchToEditFeatureMode(fid);
 			};
 			
+		} else if( 'editClosed' === type ) {
+
+			var fid = this.editFeatureInfo.fid;
+			if( !fid ){
+				fid = m.docId;
+			};
+			var reloadRequired = true;
+			if( m.cancelled ){
+				reloadRequired = false;
+			};
+			
+			// By switching to the navigate mode, the feature on the
+			// edit layer will be removed.
+			//var editFeature = this._removeGeometryEditor();
+			this.editLayerSource.clear();
+			this._switchMapMode(this.modes.NAVIGATE);
+
+			// Add back feature to map
+//			this.infoLayers.forEach(function(layerInfo){
+//				if( layerInfo.featureStrategy ){
+//					layerInfo.featureStrategy.setEditedFeatureIds(null);
+//				};
+//			});
+			
+			// If feature was deleted, then remove it from map
+			//TODO: feature removal for ol5
+			if( m.deleted && fid ){
+				reloadRequired = false;
+
+				this.forEachVectorLayer(function(layerInfo, layer){
+					var reloadLayer = false;
+					var featuresToAdd = [];
+					layerInfo.forEachFeature(function(f){
+						if( f.fid === fid ){
+							reloadLayer = true;
+						} else {
+							featuresToAdd.push(f);
+						};
+					});
+					
+					if( reloadLayer ){
+						layer.removeAllFeatures({silent:true});
+						layer.addFeatures(featuresToAdd);
+					};
+				});
+			};
+			
+			this.editFeatureInfo = {};
+			this.editFeatureInfo.original = {};
+			
+			// Reload feature
+//			if( reloadRequired ){
+//				var filter = $n2.olFilter.fromFid(fid);
+//				this._reloadFeature(filter);
+//			};
+			
+		} else if ('resolutionRequest' === type){
+			m.resolution = _this.resolution;
+			m.proj = _this.proj;
 		};
 //		else if ('focusOn' === type) {
 //			
@@ -1536,28 +1581,31 @@ class N2MapCanvas  {
 
 	}
 	
-	_getMapFeaturesIncludingFidMapOl5(fidMap) {
-		
-		var result_features = [];
-		if( this.features_ && this.features_.length > 0 ) {
-			
-			let features = this.features_;
-			for(let loop=0;loop<features.length;++loop) {
-				let feature = features[loop];
-				if( feature.fid && fidMap[feature.fid] ) {
-					result_features.push( feature );
-				} else if( feature.cluster ) {
-					for(var j=0,k=feature.cluster.length; j<k; ++j){
-						var f = feature.cluster[j];
-						if( f.fid && fidMap[f.fid] ){
-							 result_features.push(f);
-						};
-					};
+	_getMapFeaturesIncludingFid(fid) {
+		var result_feature = null;
+		if (fid){
+			if( this.sources ) {
+				
+				let sources = this.sources;
+				for(let loop=0;loop<sources.length;++loop) {
+					var source = sources[loop];
+					result_feature = source.getFeatureById(fid);
+					if (result_feature){
+						break;
+					}
+//					} else if( feature.cluster ) {
+//						for(var j=0,k=feature.cluster.length; j<k; ++j){
+//							var f = feature.cluster[j];
+//							if( f.fid && fidMap[f.fid] ){
+//								 result_features.push(f);
+//							};
+//						};
+//					};
 				};
 			};
-		};
+		}
 		
-		return result_features;
+		return result_feature;
 	}
 	
 	/**

@@ -64,6 +64,7 @@ class N2SourceWithN2Intent extends VectorSource {
 		 */
 		this.features_ = [];
 
+		
 		this.fidToFeatureMap = {};
 		
 		this.toggleClick = true;
@@ -104,8 +105,8 @@ class N2SourceWithN2Intent extends VectorSource {
 	    }
 		//listen(this.source, EventType.CHANGE, this.refresh, this);
 	    listen(this, 'sourceRefChanged', this.handleSourceRefChange, this);
-		listen(this.interaction_,  "hover",  this.onHover, this);
-		listen(this.interaction_,  "clicked",  this.onClicked, this);
+		this.userInputEventKeys = [];
+	    this.bindEventListener();
 
 
 		
@@ -125,6 +126,15 @@ class N2SourceWithN2Intent extends VectorSource {
 			this.dispatchService.register(DH,'find',f);
 			this.dispatchService.register(DH,'findIsAvailable',f);
 		};
+	}
+	bindEventListener(){
+		this.userInputEventKeys = [
+			listen(this.interaction_,  "hover",  this.onHover, this)
+			,listen(this.interaction_,  "clicked",  this.onClicked, this)
+			]
+	}
+	unbindEventListener(){
+		this.userInputEventKeys.forEach(unlistenByKey);
 	}
 	getSource(){
 		return this.source;
@@ -492,25 +502,29 @@ class N2SourceWithN2Intent extends VectorSource {
 			return true;
 		} else {
 			this._endClicked();
-			
-			if ( clickedAgain ){
-				//this._dispatch({type: 'userUnselect',
-//								docId: selected.fid
-//								});
-			} else if ( selected 
-					&& selected.fid ) {
-				
-				//clicked new feature
-				this.clickedInfo.features = [selected];
-
-				this.clickedInfo.fids = {};
-				this.clickedInfo.fids[selected.fid] = { clicked: true };
-				this.clickedInfo.selectedId = selected.fid;
-				
-				selected.isClicked = true;
-			}
 			return true;
 		}
+//		} else {
+//			this._endClicked();
+//			
+//			if ( clickedAgain ){
+//				//this._dispatch({type: 'userUnselect',
+////								docId: selected.fid
+////								});
+//			} else if ( selected 
+//					&& selected.fid ) {
+//				
+//				//clicked new feature
+//				this.clickedInfo.features = [selected];
+//
+//				this.clickedInfo.fids = {};
+//				this.clickedInfo.fids[selected.fid] = { clicked: true };
+//				this.clickedInfo.selectedId = selected.fid;
+//				
+//				selected.isClicked = true;
+//			}
+//			return true;
+//		}
 		
 	}
 	//clear up for click
@@ -847,10 +861,10 @@ class N2SourceWithN2Intent extends VectorSource {
 				this._startFocus(m.docIds);
 			};
 			
-
+			this.refresh();
 		} else if( 'focusOff' === type ) {
 			this._endFocus();
-			
+			this.refresh();
 		} else if( 'focusOnSupplement' === type ) {
 			var fid = m.docId;
 			
@@ -871,7 +885,7 @@ class N2SourceWithN2Intent extends VectorSource {
 					,intent: m.intent
 				});
 			};
-
+			this.refresh();
 		} else if( 'selected' === type ) {
 			if( m.docId ) {
 				let fidmap = {};
@@ -888,6 +902,7 @@ class N2SourceWithN2Intent extends VectorSource {
 				this._selectedFeatures(features, m.docIds);
 			};
 
+			this.refresh();
 		} else if( 'selectedSupplement' === type ) {
 			let fid = m.docId;
 			if( fid ) {
@@ -901,10 +916,10 @@ class N2SourceWithN2Intent extends VectorSource {
 				});
 			};
 
-			
+			this.refresh();
 		} else if( 'unselected' === type ) {
 			this._endClicked();
-
+			this.refresh();
 		} else if( 'find' === type ){
 
 			var doc = m.doc;
@@ -950,20 +965,12 @@ class N2SourceWithN2Intent extends VectorSource {
 //					olLayerToTurnOn.setVisibility(true);
 //				};
 //			};
-			
+			this.refresh();
 		
 		} else if ( 'findIsAvailable' === type ){
 			//TODO just a work around.Not for production.
 			m.isAvailable = true;
 		}
-		
-		this.updateN2Label();
-		
-		_this.dispatchService.send(DH, {
-			type: 'n2rerender'
-		})
-		
-		
 	}
 	
 	_dispatch(m){
