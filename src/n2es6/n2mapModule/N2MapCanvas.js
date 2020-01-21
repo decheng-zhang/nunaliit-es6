@@ -506,12 +506,15 @@ class N2MapCanvas  {
 			this._switchMapMode(this.modes.NAVIGATE);
 			
 		} else if( this.currentMode === this.modes.ADD_GEOMETRY ) {
+			this._switchMapMode(this.modes.NAVIGATE);
+			this.editLayerSource.clear();
 			//this.editLayerSource.clear();
-		//	this._cancelEditFeatureMode();
+			this._cancelEditFeatureMode();
 			
 		} else if( this.currentMode === this.modes.EDIT_FEATURE ) {
+			this._switchMapMode(this.modes.NAVIGATE);
 			this.editLayerSource.clear();
-			//	this._cancelEditFeatureMode();
+			this._cancelEditFeatureMode();
 		};
 		return false;
 	};
@@ -927,6 +930,7 @@ class N2MapCanvas  {
 		var previousMode = this.currentMode;
 		this.switchToEditFeatureMode(feature.fid, feature);
 		previousMode.featureAdded(feature);
+		this._centerMapOnFeature(feature);
 	}
 	_dispatch(m){
 		var dispatcher = this._getDispatchService();
@@ -1421,10 +1425,10 @@ class N2MapCanvas  {
 				var feature = this._getMapFeaturesIncludingFid(fid);
 			
 				//TODO: center feature on map;
-//				if( feature ) {
-//					this._centerMapOnFeature(feature);
-//					addGeometryMode = false;
-//					
+				if( feature ) {
+					this._centerMapOnFeature(feature);
+					addGeometryMode = false;
+				}						
 //				} else {
 //					// must center map on feature, if feature contains
 //					// a geometry
@@ -1579,6 +1583,13 @@ class N2MapCanvas  {
 //			
 //		}
 
+	}
+	_centerMapOnFeature(feature){
+		var extent = feature.getGeometry().getExtent();
+		var map = this.n2Map;
+		if(extent){
+			map.getView().fit(extent, map.getSize() );
+		}
 	}
 	
 	_getMapFeaturesIncludingFid(fid) {
