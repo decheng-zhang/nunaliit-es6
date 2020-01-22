@@ -1049,7 +1049,7 @@ class N2MapCanvas  {
 				}
 				var charlieSource = new N2SourceWithN2Intent({
 					interaction: _this.interactionSet.selectInteraction,
-					source: alphasource,
+					source: betaSource,
 					dispatchService: _this.dispatchService
 				});
 				_this.n2intentWrapper = charlieSource;
