@@ -41,7 +41,7 @@
     "script-loader": "^0.7.2",
     "shx": "^0.3.2",
     "walk": "^2.3.9",
-    "webpack": "4.28.3",
+    "webpack": "5.94.0",
     "webpack-cli": "^3.0.8",
     "webpack-dev-middleware": "^3.4.0",
     "webpack-dev-server": "^3.1.14",
